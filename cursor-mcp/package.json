@@ -1,5 +1,6 @@
 {
-  "name": "dsh-cursor-mcp",
+  "name": "@local/cursor-mcp",
+  "private": true,
   "version": "1.0.0",
   "description": "Cursor MCP servers (from ~/.cursor/mcp.json) re-packaged as DeepSeek Harness mcp-client rows (8 servers; HTTP secrets read at load time from the Cursor config).",
   "type": "module",
@@ -14,9 +15,6 @@
     "deepseek-harness"
   ],
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lnuxe/dsh-cursor.git"

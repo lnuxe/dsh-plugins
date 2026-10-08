@@ -1,6 +1,16 @@
 # Changelog
 
-本仓库遵循语义化版本（SemVer）。三个 bundle 插件各自维护版本号，仓库级 tag 对齐 cursor-persona 的主版本号。
+本仓库遵循语义化版本（SemVer）。四个 bundle 插件各自维护版本号，仓库级 tag 对齐 cursor-persona 的主版本号。
+
+## [1.2.0] - 2026-10-08
+
+### Added
+- `cursor-orchestrator` skill：Cursor Project Agent Mode 的忠实移植（`progress.md` 持久便签、编排者只编排不实现、写作用域互斥、阶段门控、高工程标准），映射到 DSH 的 create_goal / subagent / subagent_fork / todo_write / ask_user_question。
+- `cursor-telemetry` 插件（新 bundle）：零依赖内存态可观测性，包装 `ctx.skills.get` 记录 skill 触发次数，监听 `skills/change` 与 `goal/changed`，句柄 `ctx.cursorTelemetry`（`.stats()` / `.reset()`）。
+- `cursor-persona` 新增 `<orchestration>` 分节，指向 cursor-orchestrator skill。
+
+### Changed
+- cursor-skills 27 个 skill（新增 cursor-orchestrator）；README 增补插件 D 与验证项；文档中 bundle 数量、skill 数量同步更新。
 
 ## [1.1.0] - 2026-10-08
 

@@ -1,0 +1,72 @@
+# Cursor MCP servers migrated from ~/.cursor/mcp.json into dsh-mcp-client rows.
+# Each row is a host-level (global-layer) registration, so the tools
+# (`mcp__<serverName>__<tool>`) are available to every agent.
+#
+# stdio servers are configured verbatim. The two streamable-http servers read
+# their secrets at load time from ~/.cursor/mcp.json via a `!!js` Loader
+# expression (no secret is copied into this patch).
+- insert:
+    - id: cursor-mcp-dart
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: dart
+        transport: stdio
+        command: dart
+        args: ['mcp-server', '--experimental-mcp-server', '--force-roots-fallback']
+
+    - id: cursor-mcp-mobile
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: mobile-mcp
+        transport: stdio
+        command: npx
+        args: ['-y', '@mobilenext/mobile-mcp@latest']
+
+    - id: cursor-mcp-wdio
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: wdio-mcp
+        transport: stdio
+        command: npx
+        args: ['-y', '@wdio/mcp']
+        env:
+          APPIUM_URL: 127.0.0.1
+          APPIUM_URL_PORT: '4723'
+
+    - id: cursor-mcp-appium
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: appium-mcp
+        transport: stdio
+        command: npx
+        args: ['appium-mcp@latest']
+        env:
+          ANDROID_HOME: /Users/v_ldjnlin/Library/Android/sdk
+
+    - id: cursor-mcp-adb
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: adb-mcp
+        transport: stdio
+        command: npx
+        args: ['-y', '@landicefu/android-adb-mcp-server']
+
+    # android-mcp 走 uvx（首次启动下载建 venv，慢/易超时）且与 adb-mcp 功能重叠，
+    # 默认禁用；需要时删掉 disabled 一行再重启即可启用。
+    - id: cursor-mcp-android
+      name: '@deepseek-ai/dsh-mcp-client'
+      disabled: true
+      config:
+        serverName: android-mcp
+        transport: stdio
+        command: uvx
+        args: ['android-mcp']
+
+    - id: cursor-mcp-perfdog
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: perfdog-mcp-tools
+        transport: streamable-http
+        url: https://perfdog.qq.com/mcp
+        headers:
+          Mcp_token: !!js "(function(){try{const fs=process.getBuiltinModule('fs');const c=JSON.parse(fs.readFileSync(process.env.HOME+'/.cursor/mcp.json','utf8'));return c.mcpServers['perfdog-mcp-tools'].headers['Mcp_token'];}catch(e){return '';}})()"

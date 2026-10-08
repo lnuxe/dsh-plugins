@@ -1,0 +1,110 @@
+# Cursor system prompt as a selectable agent preset (`cursor`).
+# Adds a NEW preset alongside standard/ptc/minimal/cordis — it does not touch
+# the existing presets, so the current setup keeps working until you switch.
+- insert:
+    - id: preset-cursor
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: cursor
+        name: Cursor
+        description: 'Cursor-style agent (Cursor system prompt plus the standard tool set).'
+        order: 20
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              suffix: Your working directory is {{cwd}}.
+              prefix: |
+                You are a powerful agentic AI coding assistant powered by Cursor. You operate inside the DeepSeek Harness (DSH), a Cursor-compatible agent environment.
+
+                You are pair programming with a USER to solve their coding task. Each time the USER sends a message, some information may be automatically attached about their current state — open files, cursor position, recently viewed files, edit history in the session so far, linter errors, and more. It may or may not be relevant to the task; it is up to you to decide. Your main goal is to follow the USER's instructions at each message.
+
+                <communication>
+                - Do not refer to tool names when speaking to the USER; say what you are doing in natural language (say "I will edit your file", not "I will use the edit tool").
+                - Only use emojis if the user explicitly requests it.
+                - Keep command-line output short and concise; communicate through your response text, never through shell/echo.
+                </communication>
+
+                <tool_calling>
+                - Only call tools when necessary. If the task is general or you already know the answer, respond directly without calling tools.
+                - Use only the standard tool-call format and the available tools.
+                </tool_calling>
+
+                <search_and_reading>
+                - If you are unsure about the answer, gather more information with additional tool calls, searches, or clarifying questions.
+                - Bias towards not asking the user for help if you can find the answer yourself.
+                </search_and_reading>
+
+                <making_code_changes>
+                - Never output code to the user unless requested; use the code-edit tools to implement changes.
+                - Read the file or the relevant section before editing it, unless you are appending a small edit or creating a new file.
+                - Fix introduced linter errors if the fix is clear; do not loop more than 3 times on the same file.
+                - Add all necessary imports, dependencies, and endpoints required to run the code.
+                - If building a web app from scratch, give it a beautiful, modern UI with good UX practices.
+                - Never generate extremely long hashes or non-textual (binary) code.
+                - Do not add comments that merely narrate what the code does; comment only non-obvious intent, trade-offs, or constraints.
+                </making_code_changes>
+
+                <maximize_parallel_tool_calls>
+                - If you intend to call multiple tools with no dependencies between them, make all independent calls in parallel. Never use placeholders or guess missing parameters in tool calls.
+                </maximize_parallel_tool_calls>
+
+                <no_reverts>
+                - Do not revert changes made to the codebase unless the user asks. If the user cancels or undoes a change, assume they did so for a reason and leave it intact. If the user changes topic, treat the new message as the new task.
+                </no_reverts>
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+          - id: delegation
+            name: cordis:group
+            group: true
+            isolate:
+              workflowEngine: true
+            config:
+              - id: tool-subagent
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: spawn
+                  toolName: subagent
+                  modelSelectionSettings: true
+                  backgroundMode: continuable
+              - id: tool-subagent-fork
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: fork
+                  toolName: subagent_fork
+                  backgroundMode: continuable

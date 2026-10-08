@@ -10,6 +10,13 @@
 
 ---
 
+## 〇、为什么 Cursor 跑得顺（方法论调研）
+
+> 本仓库另附一篇方法论调研报告，回答"顺滑"背后的工程决策（系统提示词分节 / skill 检索 / MCP 自动发现 / 上下文注入 / 长任务编排），并给出可借鉴清单：
+> 见 [docs/why-cursor-is-smooth.md](docs/why-cursor-is-smooth.md)。
+
+---
+
 ## 一、逆向结论
 
 ### 1. Cursor 应用结构
@@ -17,7 +24,7 @@
 `/Applications/Cursor.app/Contents/Resources/app/` 是一个 **VS Code 分支**：
 
 - `out/main.js`（约 2.5 MB）— 主进程入口（minified）。
-- `extensions/` — 119 个内置扩展；其中 `cursor-agent-host`（约 12 MB）承载 agent 运行时与系统提示词；`cursor-mcp` 承载 MCP 客户端（用 `@modelcontextprotocol/sdk` 1.25.1）。
+- `extensions/` — 117 个内置扩展；其中 `cursor-agent-host`（约 12 MB）承载 agent 运行时与系统提示词；`cursor-mcp` 承载 MCP 客户端（用 `@modelcontextprotocol/sdk` 1.25.1）。
 - `product.json` — 产品配置（本机 `aiConfig` 仅 `{ ariaKey: "control-key" }`）。
 - 应用**没有 asar 打包**（`app.asar` 不存在、`node_modules.asar` 是 28 字节占位），直接是明文 `out/` + `extensions/`，所以可直接字符串检索。
 
@@ -37,6 +44,8 @@
 - 改代码用编辑工具而非输出代码块；编辑前先读文件；修掉自己引入的 lint 错误
 - 无依赖的工具调用并行发起；禁止用占位符猜参数
 - 不擅自回退用户改动；用户换话题则当作新任务
+
+> 注：v1.1.0 起 persona prefix 已补全到高保真——在原有基础上新增 `<task_management>`、`<citing_code>`、`<calling_external_apis>`、`<parameter_discipline>` 分节，并把 `<communication>` 扩为含 "lead with the answer" 的完整版；`citing_code` 的 `startLine:endLine:filepath` 格式按 DSH 惯例映射为 markdown 链接带行号（`path#L24-L30`）。
 
 ### 3. 系统 Skill
 

@@ -1,0 +1,28 @@
+{
+  "name": "@local/cursor-orchestrator",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cursor root-orchestrator agent preset (plan, delegate to subagents, durable progress.md state, safe parallelism) reverse-engineered from Cursor.app.",
+  "type": "module",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "cursor",
+    "orchestrator",
+    "preset",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnuxe/dsh-cursor.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

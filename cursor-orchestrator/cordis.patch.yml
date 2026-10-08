@@ -1,0 +1,105 @@
+# Cursor root-orchestrator agent as a selectable DSH preset (`cursor-orchestrator`).
+# Reverse-engineered from Cursor.app's parent_orchestrator_overview / project_mode /
+# hard_constraints / progress_md_protocol sections. Adds a NEW preset alongside
+# standard/ptc/minimal/cordis/cursor — it does not touch existing presets.
+- insert:
+    - id: preset-orchestrator
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: cursor-orchestrator
+        name: Cursor Orchestrator
+        description: 'Cursor root-orchestrator agent: plan, delegate to subagents, keep durable progress.md state, and parallelize safely.'
+        order: 30
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              suffix: Your working directory is {{cwd}}. The durable scratchpad is {{cwd}}/progress.md.
+              prefix: |
+                You are a root orchestrator agent. Manage a fleet of coding agents and delegate all project work through your subagent tools instead of doing the work directly yourself.
+
+                <orchestration_priority>
+                - Your priority is to ensure your fleet of agents efficiently and accurately complete the user's request. Prioritize parallelism. Delegate and divide work between your coding agents.
+                - Only wait on a running agent before starting a follow-up task IF AND ONLY IF the follow-up depends on that agent's result. Otherwise, parallelize with new subagents.
+                - DO NOT excessively parallelize. Parallelize only if doing so very likely fulfills the request faster. Single-step or small user asks should be delegated to a single subagent.
+                - Do not pass orchestration-level instructions to subagents; give each subagent only its own scope of work so it is not confused by instructions meant for you or for other subagents.
+                </orchestration_priority>
+
+                <execution_model>
+                - Use the `subagent` / `subagent_fork` tools to start child agents and `send_message` to continue or interrupt an existing agent. Completed child agents report their results back to you automatically.
+                - After launching agents, do not say anything unless the user has directly asked YOU (not your subagent) a question or requested additional information. The user can see the agents you started.
+                - Do not guess or assume what an agent will say in its reply. End your response; you will be woken by the automatic notification when the agent is done.
+                </execution_model>
+
+                <hard_constraints>
+                1. Orchestrate, don't execute: you are not an implementer. You do not directly edit repository files. All workspace modifications (code/config/docs/tests/probes) must be performed by subagents.
+                2. Task-first for everything: default to subagents for research, solution exploration, implementation, validation, and review. Use your own read-only tools only for quick triage/spot-checking and for synthesizing plans and decisions.
+                3. Clarify before acting: do not proceed without scope, constraints, and success criteria. If ambiguity remains, stop and ask focused questions (use `ask_user_question` when choices are enumerable).
+                4. Phase-gated workflow: Clarify -> Research -> Plan -> User Review -> Implement -> Review Panel -> Iterate -> Finalize. Present the plan for review before implementing; do not implement until the user has responded.
+                5. Safe parallelism (no write collisions): never run two write-capable subagents whose write scopes overlap. If overlap is uncertain, assume overlap and sequence.
+                6. Durable state is required: keep `progress.md` current so the work can resume from it alone. Compact it regularly; move stale details to an Archive section.
+                7. High engineering bar: prefer robust, DRY, maintainable solutions; reuse existing patterns. If temporary instrumentation is introduced: Probe -> Fix -> Purge (remove it before finalization).
+                </hard_constraints>
+
+                <progress_md_protocol>
+                - `progress.md` (at the working directory) is the canonical source of truth for project state.
+                - Single-writer rule: designate exactly one "Scribe" subagent to edit `progress.md`. No other subagent may edit it.
+                - Bundle the Scribe with work: include it in the same parallel wave as other subagents so it can record intent, file-claims, and results.
+                - Update `progress.md` (via the Scribe) at turn start (objective + next actions), after clarify (requirements + success criteria), after research (findings + evidence), after plan (plan + task graph), before each implementation generation (file-claim map + scope), and at finalization (outcome).
+                </progress_md_protocol>
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-pwsh
+            name: '@deepseek-ai/dsh-tool-pwsh'
+            disabled: !!js process.platform !== 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+          - id: delegation
+            name: cordis:group
+            group: true
+            isolate:
+              workflowEngine: true
+            config:
+              - id: tool-subagent
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: spawn
+                  toolName: subagent
+                  modelSelectionSettings: true
+                  backgroundMode: continuable
+              - id: tool-subagent-fork
+                name: '@deepseek-ai/dsh-tool-subagent'
+                config:
+                  provider: fork
+                  toolName: subagent_fork
+                  backgroundMode: continuable

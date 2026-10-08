@@ -2,6 +2,11 @@
 
 本仓库遵循语义化版本（SemVer）。四个 bundle 插件各自维护版本号，仓库级 tag 对齐 cursor-persona 的主版本号。
 
+## [1.6.0] - 2026-10-08
+
+### Changed
+- `cursor-hooks` 增强：PreToolUse 从"纯观察"升级为 **veto 门**——hook 脚本 exit code 2 或 stdout 输出 `{"permissionDecision":"deny"}` 时，通过 `tools/pre-execute` waterfall 返回 `{ kind: "deny", reason }`，工具不再派发、模型收到拒绝原因；其余 hook 保持 fire-and-forget。新增 config `veto`（默认 true）/`vetoTimeoutMs`（默认 5000，超时放行）。单测 5/5 通过。
+
 ## [1.5.0] - 2026-10-08
 
 ### Added

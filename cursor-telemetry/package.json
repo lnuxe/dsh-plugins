@@ -1,0 +1,42 @@
+{
+  "name": "dsh-cursor-telemetry",
+  "version": "1.0.0",
+  "description": "Cursor-style skill/goal telemetry for DeepSeek Harness: in-memory counters for skill loads, catalog changes, and goal lifecycle, exposed as ctx.cursorTelemetry.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "cursor",
+    "telemetry",
+    "observability",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnuxe/dsh-cursor.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dshTarget": "0.2.0-rc.2"
+}

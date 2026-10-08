@@ -2,6 +2,15 @@
 
 本仓库遵循语义化版本（SemVer）。四个 bundle 插件各自维护版本号，仓库级 tag 对齐 cursor-persona 的主版本号。
 
+## [1.8.0] - 2026-10-08
+
+### Added
+- **cursor-orchestrator** bundle：逆向 Cursor 的 `parent_orchestrator_overview` / `project_mode` / `hard_constraints` / `progress_md_protocol` 编排分节，做成 DSH 的 `cursor-orchestrator` agent preset（root orchestrator：plan → delegate subagents → `progress.md` 持久状态 → 安全并行）。
+- **cursor-rules 支持 AGENTS.md**：逆向 Cursor 的 `cloud_instructions` 分节（description = "Instructions pulled from AGENTS.md"），从 session cwd 向上遍历收集 AGENTS.md 并注入独立分节（`agentsMd` 开关，默认开）。
+
+### 逆向结论（无需新建）
+- subagent model selection：Cursor 的 `SubagentStart.model` / `model_id` / `model_params` 对应 DSH 已有 `agentOptions.model` + `agentRouteDefaults.model`（`subagentModelSelection` service），无需新增。
+
 ## [1.7.0] - 2026-10-08
 
 ### Changed

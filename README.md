@@ -1,13 +1,15 @@
 # Cursor → DeepSeek Harness 逆向与插件集成
 
-把本机 `/Applications/Cursor.app` 的「系统工程」逆向出来，映射到 DeepSeek Harness (DSH)，并做成三个可安装的 DSH bundle 插件：
+把本机 `/Applications/Cursor.app` 的「系统工程」逆向出来，映射到 DeepSeek Harness (DSH)，并做成六个可安装的 DSH bundle 插件：
 
 | # | 交付物 | 路径 | 对应 Cursor 组件 |
 |---|--------|------|------------------|
-| A | `@local/cursor-skills` | `cursor-skills/` | `~/.cursor/skills-cursor/`（26 个内置 skill） |
+| A | `@local/cursor-skills` | `cursor-skills/` | `~/.cursor/skills-cursor/`（27 个内置 skill） |
 | B | `@local/cursor-mcp` | `cursor-mcp/` | `~/.cursor/mcp.json`（8 个 MCP server） |
 | C | `@local/cursor-persona` | `cursor-persona/` | Cursor 系统提示词（`cursor-agent-host` 内嵌） |
 | D | `@local/cursor-telemetry` | `cursor-telemetry/` | Cursor 可观测性（skill 触发 / 目录变更 / goal 生命周期） |
+| E | `@local/cursor-mcp-policy` | `cursor-mcp-policy/` | Cursor MCP 工具级过滤（server 开关 / allowlist / 单工具禁用） |
+| F | `@local/cursor-hooks` | `cursor-hooks/` | Cursor 生命周期 hook（7 个事件点桥接到 shell） |
 
 ---
 
@@ -95,7 +97,7 @@
 
 ---
 
-## 三、交付的四个插件
+## 三、交付的六个插件
 
 ### 插件 A — `@local/cursor-skills`（Host skill provider）
 
@@ -146,17 +148,45 @@ cursor-telemetry/
 - 统计句柄 `ctx.cursorTelemetry`：`.stats()`（按触发次数降序的 skillLoads、skillCatalogChanges、goalChangeCount、recentGoalChanges）、`.reset()`。
 - 内存态，重启清零；dispose 时恢复 `ctx.skills.get` 并移除句柄。
 
+### 插件 E — `@local/cursor-mcp-policy`（MCP 工具级过滤）
+
+```
+cursor-mcp-policy/
+├── package.json            # name @local/cursor-mcp-policy
+├── cordis.patch.yml        # - insert: cursor-mcp-policy（config: enabledServers/toolAllowlist/denyTools）
+├── index.js                # plain-context tools.guard（全局守卫）
+└── locale/en.json
+```
+
+- 移植 Cursor 的三级过滤：`enabledServers`（整 server 开关）→ `toolAllowlist`（per-server 白名单）→ `denyTools`（单工具禁用）。
+- DSH 没有 context-global `tools.restrict`（会遮蔽所有 agent），所以用 **plain-context `tools.guard`**：被禁工具调用时返回 deny 原因；被禁工具仍可见但调用失败，等价于 Cursor `userDisabledToolKeys` 的"使用时阻断"。
+
+### 插件 F — `@local/cursor-hooks`（生命周期 hook）
+
+```
+cursor-hooks/
+├── package.json            # name @local/cursor-hooks
+├── cordis.patch.yml        # - insert: cursor-hooks（config: hooks: { HookName: shellCommand }）
+├── index.js                # ctx.on 桥接 7 个事件 -> spawn shell
+└── locale/en.json
+```
+
+- 7 个事件点桥接：`PreToolUse→tools/pre-execute`、`PostToolUse→tools/result`、`UserPromptSubmit→agent/inbox/inserted`、`Stop→agent/turn-stopping`、`SubagentStop→subagent/end`、`SessionStart→agent/created`、`SessionEnd→agent/disposed`。
+- 每个 hook 的 shell 命令经 stdin 收一个 JSON 对象（`{ "hook": ..., ...payload }`），fire-and-forget；第一版为**观察模式**（不 veto，waterfall 一律 `next()`）。
+
 ---
 
 ## 四、安装与验证
 
-四个 bundle 已通过 `plugin_manager install_bundle` 装进 `web` profile（`list_bundles` 可见，均为 `link:` 到本工作目录）：
+六个 bundle 已通过 `plugin_manager install_bundle` 装进 `web` profile（`list_bundles` 可见，均为 `link:` 到本工作目录）：
 
 ```
 @local/cursor-skills      -> row cursor-skills (27 skills)
 @local/cursor-mcp         -> 8 rows cursor-mcp-*
 @local/cursor-persona     -> row preset-cursor
 @local/cursor-telemetry   -> row cursor-telemetry
+@local/cursor-mcp-policy  -> row cursor-mcp-policy（tools.guard）
+@local/cursor-hooks       -> row cursor-hooks
 ```
 
 **运行时验证结果**：
@@ -165,16 +195,19 @@ cursor-telemetry/
 - ✅ MCP 工具已注册（`Tool.listTools` 实测可见）：`mcp__dart__*`、`mcp__mobile-mcp__*`、`mcp__wdio-mcp__*`、`mcp__appium-mcp__*`、`mcp__adb-mcp__*`、`mcp__perfdog-mcp-tools__*`。
 - ✅ `preset-cursor` 已注册到 `agentPresets` 行表。
 - ✅ `cursor-telemetry` 已注册，`ctx.cursorTelemetry` 提供 skill 触发 / 目录变更 / goal 生命周期统计（内存态，重启清零）。
+- ✅ `cursor-mcp-policy` 已注册：guard 逻辑单测 5/5 通过（`denyTools` 单工具禁用 / `toolAllowlist` per-server 白名单 / 非 MCP 工具放行 / 无限制 server 放行）。
+- ✅ `cursor-hooks` 已注册：`PostToolUse` hook 端到端实测触发，payload `{"hook":"PostToolUse","name":"read","isError":false}` 成功落盘。
 
 ---
 
 ## 五、已知限制与迁移注意
 
-1. **重启生效**：`cursor-skills` 的 `index.js` 模块（manifest 描述修正）与 `cursor-mcp` 的 token `!!js` 需重启 dsh 才会在运行进程重新加载；`preset-cursor` 需重启后在 preset 选择器里切到 **Cursor** 才挂载 persona；`cursor-telemetry` 需重启后才挂载 `ctx.cursorTelemetry`。
+1. **重启生效**：改 `index.js` 模块不会热更新（HMR 只 watch `cordis.patch.yml`），需重启 dsh 才重新加载——`cursor-skills`（`environments`/`disabled-environments` metadata 透传）与 `cursor-mcp-policy`（restrict → guard 重写）当前运行进程可能仍是上一版模块，重启后生效；`preset-cursor` 需重启后切到 **Cursor** preset；`cursor-telemetry` 需重启后挂载 `ctx.cursorTelemetry`。
 2. **`android-mcp`（uvx）**：首次 `uvx android-mcp` 会下载建 venv，慢/易超时；本快照里未注册。它和 `adb-mcp` 功能重叠，可保留或去掉。
 3. **Cursor 专属工具映射缺失**：若干 Cursor skill 引用了 DSH 没有的 Cursor 工具/命令，例如 `CreateGoal`/`AskQuestion`/`CreateOrUpdateRule`、`/review-bugbot` 斜杠命令、`use_browser`、`gh` 等。已原样保留 skill 文本（忠实逆向），实际调用时这些工具名在 DSH 不存在，模型会改走 DSH 等价物（`create_goal`/`ask_user_question`/`subagent`/`bash` 等）。如需严格对齐，可在这些 skill 里补 DSH 工具名映射。
 4. **token 安全**：perfdog 的 token 仍以明文存于 `~/.cursor/mcp.json`（Cursor 原样），插件只做运行时引用，不复制、不落盘到 profile。
 5. **描述字段**：Cursor skill 的 `description` 常用折叠块标量（`>-`），已在 `skills-manifest.json` 生成时用 js-yaml 正确折叠。
+6. **hook 观察模式**：`cursor-hooks` 第一版 fire-and-forget，waterfall 事件（PreToolUse）一律 `next()` 不 veto；被禁 MCP 工具由 `cursor-mcp-policy` 的 guard 在调用时阻断。如需"拒绝工具调用并给模型反馈"，属后续增强。
 
 ---
 

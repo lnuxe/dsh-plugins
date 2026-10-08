@@ -75,6 +75,37 @@ README 已提取到 **3 个提示词变体**：
 
 逆向到的选择线索：`Http2TransportCallSite.AGENTIC_COMPOSER` / `BACKGROUND_COMPOSER_PROXY` / `SUBAGENT_COMPOSER_BCID_NAMESPACE`——变体与 **agent 类型 / 传输后端**绑定，而非用户可见的单一开关。
 
+### 1.3 `cloud_instructions` = AGENTS.md（项目级指令，非云端后端）
+
+`cloud_instructions` 分节名像"云端指令"，实际内容是 **AGENTS.md**：
+
+```js
+function rne({ cloudRuleContent: e }) {
+  return section({
+    title: "cloud_instructions",
+    description: "Instructions pulled from AGENTS.md",
+    children: [p("AGENTS.md contents:"), br, e],
+  });
+}
+```
+
+加载链路（`LocalCursorRulesService` + `CloudRulesService`）：
+
+- `buildIncludeGlobs()` 监听 `["*/**/.cursor/**", "*/**/.agents/**", "*/**/AGENTS.md", "*/**/CLAUDE.md", "*/**/CLAUDE.local.md", ...]`。
+- 加载时从 cwd **向上遍历到文件系统根**，每级目录都尝试 `loadRulesFromMarkdownFile(ctx, dir, "AGENTS.md")`，结果合并（最近优先）：
+  ```js
+  for (;;) {
+    s.push(loadRulesFromDirectory(ctx, i));            // .cursor/rules
+    n.push("AGENTS.md");                               // + CLAUDE.md/.local 可选
+    for (const e of n) s.push(loadRulesFromMarkdownFile(ctx, i, e));
+    const l = dirname(i); if (l === i) break; i = l;   // 向上一级
+  }
+  ```
+- `computeGlobalCache()` 里与 cursorRules / codebaseRef / customSubagents **并行**加载 `cloudRule`（`this.cloudRulesService.getCloudRule(ctx)`），最后写入 `RequestContext.cloudRule`。
+- 语义区分：`.cursor/rules/*.mdc` → `rules`/`always_applied_workspace_rules`；`AGENTS.md` → 独立 `cloud_instructions` 分节。两者是**不同分节**。
+
+> 对应落地：`cursor-rules` 已把 AGENTS.md 作为独立 `cursor:cloud-instructions` 分节注入（`agentsMd` 开关，从 cwd 向上遍历收集）。
+
 ---
 
 ## 二、系统 Skill 的触发与门控
@@ -240,6 +271,8 @@ SubagentStop:  status, duration_ms, summary, message_count, tool_call_count,
 
 要点：subagent 有 `is_parallel_worker`（并行 worker）标志、`git_branch`（可绑分支）、`loop_count`（递归深度）、`modified_files`（回收时上报改动）。响应里还带 `permission`（派生前要授权）。
 
+**模型选择**：`SubagentStart` 的 proto 字段带 `model`（模型名）/ `model_id`（模型 ID）/ `model_params`（repeated 模型参数 message `SR`）——父 agent 派生 subagent 时可指定用哪个模型。DSH 已有对应物：`subagents` service 的 `SubagentStartRequest.agentOptions.model` + `agentRouteDefaults.model`（`subagentModelSelection` service），无需新建。
+
 ### 4.3 Compaction 触发
 
 `PreCompactRequestQuery`：`trigger`（触发原因）、`context_usage_percent`、`context_tokens`、`context_window_size`、`message_count`、`messages_to_compact`、`is_first_compaction`。
@@ -263,6 +296,28 @@ git_diff_request / conversation_search_args ...
 ### 4.5 Request context 重建
 
 `rebuildRequestContextOnRulesChange`：规则变化会触发 `rebuildGlobalCache()` + 重建 request context，把最新 rules/skills 反映到下一次 turn。
+
+### 4.6 根编排 agent（orchestrator 模式）
+
+`main.js` 里有多组 orchestration 分节，构成"根编排 agent"（root orchestrator）的完整人格：
+
+**`parent_orchestrator_overview`**（root orchestrator）：
+- "You are a root orchestrator agent... Manage a fleet of coding agents and delegate all project work through your agent orchestration tools instead of doing the work directly yourself."
+- 优先并行；只有依赖时才等；不过度并行（单步/小任务用单个 subagent）。
+- 编排工具：`CREATE_TASK`（启动异步子 agent）+ `SEND_TO_TASK`（继续/中断已有 agent）；子 agent 完成通过 `<agent_notification>` 标签回传。
+- 不把编排级指令下发给 subagent，避免混淆。
+
+**`execution_model`**：两种输入——用户消息（`<user_query>` 标签）vs 自动 subagent 通知（`<agent_notification>` 标签）；先判断"直接回答 vs 委派"。
+
+**`project_mode`**：长程 planner/orchestrator——"convert user intent into a correct, high-quality implementation by delegating work to subagents and coordinating them safely over long horizons"，且"Assume chat context may be condensed/truncated at any time; externalize durable state"。
+
+**`hard_constraints`**：Orchestrate don't execute（不直接改文件）、Task-first（默认 subagent）、Clarify before acting、Phase-gated workflow（Clarify→Research→Plan→User Review→Implement→Review→Iterate→Finalize）、Safe parallelism（写作用域互斥）、Durable state（progress.md）、High engineering bar（Probe→Fix→Purge）。
+
+**`progress_md_protocol` + `scratchpad`**：`progress.md`（`<ABS_CONVERSATION_NOTES_FOLDER>/progress.md`）是 canonical source of truth；**Single-writer rule**（只一个 Scribe subagent 写）；Scribe 与其它 subagent 同 wave 并行。
+
+**`swarm_overview`**（Grind，多级并行）：Orchestrator → Planner（探索/委派）→ Worker（实现/提交）+ Sub-planner（细分委派）；每个 agent 隔离 git clone，Worker push 到共享分支走 rebase。
+
+> 对应落地：`cursor-orchestrator` bundle 把 parent_orchestrator_overview / project_mode / hard_constraints / progress_md_protocol 做成 DSH 的 `cursor-orchestrator` preset（工具映射 CREATE_TASK→subagent、SEND_TO_TASK→send_message、AskQuestion→ask_user_question）。
 
 ---
 
@@ -315,6 +370,9 @@ git_diff_request / conversation_search_args ...
 | 提示词变体移植 | 插件 C `cursor-persona`（preset `cursor`）| ✅ 已交付 |
 | skill/目录/goal 可观测 | 插件 D `cursor-telemetry` | ✅ 已交付 |
 | MCP 工具级 allowlist / hook 事件 / environments 元数据 | 插件 E `cursor-mcp-policy` + 插件 F `cursor-hooks` + 插件 A metadata | ✅ 已交付 |
+| rules（`.cursor/rules/*.mdc` → 分节） | 插件 G `cursor-rules` | ✅ 已交付 |
+| `cloud_instructions`（AGENTS.md → 分节） | 插件 G `cursor-rules`（`agentsMd` 开关） | ✅ 已交付 |
+| 根编排 agent（parent_orchestrator_overview / project_mode / hard_constraints / progress_md_protocol） | 插件 H `cursor-orchestrator`（preset `cursor-orchestrator`） | ✅ 已交付 |
 
 ---
 

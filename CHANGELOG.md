@@ -2,6 +2,11 @@
 
 本仓库遵循语义化版本（SemVer）。四个 bundle 插件各自维护版本号，仓库级 tag 对齐 cursor-persona 的主版本号。
 
+## [1.7.0] - 2026-10-08
+
+### Changed
+- 命名统一（#5）：3 个旧 bundle 包名 `dsh-cursor-skills`→`@local/cursor-skills`、`dsh-cursor-mcp`→`@local/cursor-mcp`、`dsh-cursor-persona`→`@local/cursor-persona`，并加 `"private": true`、移除 `publishConfig`（不再发 npm）。7 个 bundle 现统一为 `@local/cursor-*` 本地命名。
+
 ## [1.6.0] - 2026-10-08
 
 ### Changed

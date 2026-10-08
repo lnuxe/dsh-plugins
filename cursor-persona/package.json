@@ -1,5 +1,6 @@
 {
-  "name": "dsh-cursor-persona",
+  "name": "@local/cursor-persona",
+  "private": true,
   "version": "1.2.1",
   "description": "Cursor system prompt reverse-engineered from Cursor.app, exposed as a selectable 'cursor' agent preset for DeepSeek Harness.",
   "type": "module",
@@ -15,9 +16,6 @@
     "deepseek-harness"
   ],
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lnuxe/dsh-cursor.git"

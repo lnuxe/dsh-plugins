@@ -1,5 +1,6 @@
 {
-  "name": "dsh-cursor-skills",
+  "name": "@local/cursor-skills",
+  "private": true,
   "version": "1.1.0",
   "description": "Cursor built-in agent skills, reverse-engineered from the local Cursor.app and re-packaged as a DeepSeek Harness bundled skill provider (26 skills with Cursor→DSH tool mapping).",
   "type": "module",
@@ -22,9 +23,6 @@
     "deepseek-harness"
   ],
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lnuxe/dsh-cursor.git"

@@ -4,7 +4,10 @@
     "description": "Use this skill to create Cursor Automations.",
     "modelInvocable": true,
     "userInvocable": true,
-    "dir": "automate"
+    "dir": "automate",
+    "environments": [
+      "local"
+    ]
   },
   {
     "name": "autopilot",
@@ -18,7 +21,11 @@
     "description": "A Cursor Canvas is a live React app that the user can open beside the chat. You MUST use a canvas when the agent produces a standalone analytical artifact — quantitative analyses, billing investigations, security audits, architecture reviews, data-heavy content, timelines, charts, tables, interactive explorations, repeatable tools, or any response that benefits from visual layout. Especially prefer a canvas when presenting results from MCP tools (Datadog, Databricks, Linear, Sentry, Slack, etc.) where the data is the deliverable — render it in a rich canvas rather than dumping it into a markdown table or code block. If you catch yourself about to write a markdown table, stop and use a canvas instead. You MUST also read this skill whenever you create, edit, or debug any .canvas.tsx file.",
     "modelInvocable": true,
     "userInvocable": true,
-    "dir": "canvas"
+    "dir": "canvas",
+    "environments": [
+      "local",
+      "cloud"
+    ]
   },
   {
     "name": "create-hook",
@@ -81,7 +88,10 @@
     "description": "Create a Cursor-hosted repo for the current project and push it. Use when a project has no git remote yet and the user asks to create a repo on Cursor, push the project to Cursor, or set up a Cursor-hosted remote; installs and signs in the origin CLI when needed.",
     "modelInvocable": true,
     "userInvocable": true,
-    "dir": "new-repo"
+    "dir": "new-repo",
+    "disabledEnvironments": [
+      "cloud"
+    ]
   },
   {
     "name": "onboard",
@@ -95,14 +105,20 @@
     "description": "Install, sign in, update, or repair the origin CLI for repos hosted on Cursor (origin.cursor.com). Use when the CLI is missing or outdated, git push/pull fails to authenticate against origin.cursor.com, or the user asks to set up, clone, or configure Cursor-hosted repos.",
     "modelInvocable": true,
     "userInvocable": true,
-    "dir": "origin"
+    "dir": "origin",
+    "disabledEnvironments": [
+      "cloud"
+    ]
   },
   {
     "name": "rename-chat",
     "description": "Rename the current chat to match its focus. Use only when the user invokes /rename-chat. Optional text after the command steers the title.",
     "modelInvocable": false,
     "userInvocable": true,
-    "dir": "rename-chat"
+    "dir": "rename-chat",
+    "environments": [
+      "local"
+    ]
   },
   {
     "name": "review",
@@ -137,7 +153,10 @@
     "description": "Save, back up, or share the current project on Cursor — creates a repo (a saved, versioned copy that isn't public) even for users who have never used git, handling all setup automatically. Use when the user asks to save, back up, publish, or share their project on Cursor, or how to not lose it.",
     "modelInvocable": true,
     "userInvocable": true,
-    "dir": "share"
+    "dir": "share",
+    "disabledEnvironments": [
+      "cloud"
+    ]
   },
   {
     "name": "shell",
@@ -179,7 +198,11 @@
     "description": "Use /visualize for creating compact charts, diagrams, or other visuals inline as part of the conversation itself. It chooses among Markdown tables, Mermaid, inline HTML, and other supported in-transcript forms. Use Canvas for durable artifacts outside the transcript that users may revisit, refine, or share.",
     "modelInvocable": true,
     "userInvocable": true,
-    "dir": "visualize"
+    "dir": "visualize",
+    "environments": [
+      "local",
+      "cloud"
+    ]
   },
   {
     "name": "cursor-orchestrator",

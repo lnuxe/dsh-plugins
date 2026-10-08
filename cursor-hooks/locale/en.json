@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Cursor Lifecycle Hooks",
+    "description": "Cursor-style agent lifecycle hooks: PreToolUse / PostToolUse / SubagentStop / SessionStart / SessionEnd / Stop."
+  }
+}

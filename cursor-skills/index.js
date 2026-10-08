@@ -40,6 +40,14 @@ async function adaptContent(content) {
   return note + content;
 }
 
+/** Carry Cursor frontmatter-only fields into DSH's `metadata` channel. */
+function entryMetadata(entry) {
+  const metadata = {};
+  if (entry.environments) metadata.environments = entry.environments;
+  if (entry.disabledEnvironments) metadata.disabledEnvironments = entry.disabledEnvironments;
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
 async function listCandidates() {
   const manifest = JSON.parse(await readFile(MANIFEST_URL, "utf8"));
   return manifest.map((entry) => {
@@ -49,6 +57,7 @@ async function listCandidates() {
       name: entry.name,
       description: entry.description,
       whenToUse: entry.whenToUse,
+      metadata: entryMetadata(entry),
       invocation: {
         modelInvocable: entry.modelInvocable,
         userInvocable: entry.userInvocable,
@@ -76,6 +85,7 @@ const provider = {
       provider: candidate.provider,
       source: candidate.source,
       resourceBase: candidate.resourceBase,
+      metadata: candidate.metadata,
       content: await adaptContent(stripFrontmatter(md)),
     };
   },

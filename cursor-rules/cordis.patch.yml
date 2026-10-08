@@ -11,3 +11,6 @@
         advertiseGlobRules: true
         # Per-rule content byte cap (0 = no cap).
         maxRuleBytes: 8000
+        # Inject AGENTS.md (walked from cwd up to fs root) as a cloud_instructions
+        # section, mirroring Cursor's "Instructions pulled from AGENTS.md".
+        agentsMd: true

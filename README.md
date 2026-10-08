@@ -1,6 +1,6 @@
 # Cursor → DeepSeek Harness 逆向与插件集成
 
-把本机 `/Applications/Cursor.app` 的「系统工程」逆向出来，映射到 DeepSeek Harness (DSH)，并做成七个可安装的 DSH bundle 插件：
+把本机 `/Applications/Cursor.app` 的「系统工程」逆向出来，映射到 DeepSeek Harness (DSH)，并做成八个可安装的 DSH bundle 插件：
 
 | # | 交付物 | 路径 | 对应 Cursor 组件 |
 |---|--------|------|------------------|
@@ -10,7 +10,8 @@
 | D | `@local/cursor-telemetry` | `cursor-telemetry/` | Cursor 可观测性（skill 触发 / 目录变更 / goal 生命周期） |
 | E | `@local/cursor-mcp-policy` | `cursor-mcp-policy/` | Cursor MCP 工具级过滤（server 开关 / allowlist / 单工具禁用） |
 | F | `@local/cursor-hooks` | `cursor-hooks/` | Cursor 生命周期 hook（PreToolUse veto 门 + 7 事件桥接） |
-| G | `@local/cursor-rules` | `cursor-rules/` | Cursor Rules（`.cursor/rules/*.mdc` → system-prompt 分节） |
+| G | `@local/cursor-rules` | `cursor-rules/` | Cursor Rules（`.cursor/rules/*.mdc` + `AGENTS.md` → system-prompt 分节） |
+| H | `@local/cursor-orchestrator` | `cursor-orchestrator/` | Cursor 根编排 agent（`parent_orchestrator_overview` → `cursor-orchestrator` preset） |
 
 ---
 
@@ -189,12 +190,25 @@ cursor-rules/
 - `alwaysApply: true` 的规则 → 注入 `<always_applied_workspace_rules>` 分节（`cursor:workspace-rules`，order 400，persona 之后、plan policy 之前）。
 - `globs` 规则 → 按 name+description+glob 广告进 `<agent_requestable_workspace_rules>`（agent 按需读文件），不内联内容。
 - per-agent scoped section（`agent.ctx`），cwd 取 `agent.session.header.cwd`；text 用 provider 函数每次 assembly 同步重读，规则改动即时生效。
+- 新增 AGENTS.md 支持：逆向 Cursor 的 `cloud_instructions` 分节（"Instructions pulled from AGENTS.md"），从 cwd 向上遍历收集 `AGENTS.md` 注入独立分节（`cursor:cloud-instructions`，order 405，`agentsMd` 开关默认开）。
+
+### 插件 H — `@local/cursor-orchestrator`（根编排 agent preset）
+
+```
+cursor-orchestrator/
+├── package.json            # name @local/cursor-orchestrator
+└── cordis.patch.yml        # - insert: preset-orchestrator（@deepseek-ai/dsh-agent-preset）
+```
+
+- 移植 Cursor 的根编排 agent：逆向 `parent_orchestrator_overview`（root orchestrator + fleet 管理 + 优先并行）、`project_mode`（长程 planner）、`hard_constraints`（Orchestrate don't execute / Task-first / phase-gated / 安全并行）、`progress_md_protocol`（Scribe 单写 `progress.md`）。
+- 工具映射：`CREATE_TASK` → `subagent`/`subagent_fork`、`SEND_TO_TASK` → `send_message`、`AskQuestion` → `ask_user_question`；subagent 带 `modelSelectionSettings: true` + `backgroundMode: continuable`。
+- 作为新 preset `cursor-orchestrator`（order 30），不触碰现有 preset。
 
 ---
 
 ## 四、安装与验证
 
-七个 bundle 已通过 `plugin_manager install_bundle` 装进 `web` profile（`list_bundles` 可见，均为 `link:` 到本工作目录）：
+八个 bundle 已通过 `plugin_manager install_bundle` 装进 `web` profile（`list_bundles` 可见，均为 `link:` 到本工作目录）：
 
 ```
 @local/cursor-skills      -> row cursor-skills (27 skills)
@@ -203,7 +217,8 @@ cursor-rules/
 @local/cursor-telemetry   -> row cursor-telemetry
 @local/cursor-mcp-policy  -> row cursor-mcp-policy（restrict + guard）
 @local/cursor-hooks       -> row cursor-hooks
-@local/cursor-rules       -> row cursor-rules
+@local/cursor-rules       -> row cursor-rules（+ cloud_instructions 分节）
+@local/cursor-orchestrator -> row preset-orchestrator
 ```
 
 **运行时验证结果**：
@@ -214,13 +229,14 @@ cursor-rules/
 - ✅ `cursor-telemetry` 已注册，`ctx.cursorTelemetry` 提供 skill 触发 / 目录变更 / goal 生命周期统计（内存态，重启清零）。
 - ✅ `cursor-mcp-policy` 已注册：restrict+guard 单测 3 场景通过（`denyTools` / `enabledServers` / `toolAllowlist`），`denyTools` 端到端实测拦截成功。
 - ✅ `cursor-hooks` 已注册：`PostToolUse` hook 端到端实测触发，payload `{"hook":"PostToolUse","name":"read","isError":false}` 成功落盘。
-- ✅ `cursor-rules` 已注册：单测 5/5 通过（always 规则内联注入、glob 规则广告、分节 name/order 正确）。
+- ✅ `cursor-rules` 已注册：单测 5/5 通过（always 规则内联注入、glob 规则广告、分节 name/order 正确）；AGENTS.md `cloud_instructions` 分节已接入。
+- ✅ `cursor-orchestrator` 已注册：`preset-orchestrator` 投影出 schema（`Config.listConfigs` status=schema），新 preset `cursor-orchestrator` 可选。
 
 ---
 
 ## 五、已知限制与迁移注意
 
-1. **重启生效**：改 `index.js` 模块不会热更新（HMR 只 watch `cordis.patch.yml`），需重启 dsh 才重新加载——`cursor-skills`（`environments`/`disabled-environments` metadata 透传）与 `cursor-mcp-policy`（新增 per-agent `restrict` 移除工具）当前运行进程可能仍是上一版模块，重启后生效；`cursor-rules` 为全新 install（新模块 URL）已即时生效；`preset-cursor` 需重启后切到 **Cursor** preset；`cursor-telemetry` 需重启后挂载 `ctx.cursorTelemetry`。
+1. **重启生效**：改 `index.js` 模块不会热更新（HMR 只 watch `cordis.patch.yml`），需重启 dsh 才重新加载——`cursor-skills`（`environments`/`disabled-environments` metadata 透传）与 `cursor-mcp-policy`（新增 per-agent `restrict` 移除工具）当前运行进程可能仍是上一版模块，重启后生效；`cursor-rules` 为全新 install（新模块 URL）已即时生效；`preset-cursor` 需重启后切到 **Cursor** preset、`preset-orchestrator` 需重启后切到 **Cursor Orchestrator** preset；`cursor-telemetry` 需重启后挂载 `ctx.cursorTelemetry`。
 2. **`android-mcp`（uvx）**：首次 `uvx android-mcp` 会下载建 venv，慢/易超时；本快照里未注册。它和 `adb-mcp` 功能重叠，可保留或去掉。
 3. **Cursor 专属工具映射缺失**：若干 Cursor skill 引用了 DSH 没有的 Cursor 工具/命令，例如 `CreateGoal`/`AskQuestion`/`CreateOrUpdateRule`、`/review-bugbot` 斜杠命令、`use_browser`、`gh` 等。已原样保留 skill 文本（忠实逆向），实际调用时这些工具名在 DSH 不存在，模型会改走 DSH 等价物（`create_goal`/`ask_user_question`/`subagent`/`bash` 等）。如需严格对齐，可在这些 skill 里补 DSH 工具名映射。
 4. **token 安全**：perfdog 的 token 仍以明文存于 `~/.cursor/mcp.json`（Cursor 原样），插件只做运行时引用，不复制、不落盘到 profile。

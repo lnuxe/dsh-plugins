@@ -1,6 +1,6 @@
 {
   "name": "dsh-cursor-persona",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Cursor system prompt reverse-engineered from Cursor.app, exposed as a selectable 'cursor' agent preset for DeepSeek Harness.",
   "type": "module",
   "files": [

@@ -73,6 +73,10 @@
                 - Before each tool call, check that all required parameters are provided or can reasonably be inferred from context. If a required value is missing, ask the user to supply it. Use a user-provided value exactly as given; do not make up values for, or ask about, optional parameters.
                 </parameter_discipline>
 
+                <orchestration>
+                - For long-running, multi-step goals, delegate workspace edits to subagent / subagent_fork and keep a durable scratchpad (progress.md) as the canonical source of truth. See the cursor-orchestrator skill for the full discipline (phase gating, write-scope mutual exclusion).
+                </orchestration>
+
                 <no_reverts>
                 - Do not revert changes made to the codebase unless the user asks. If the user cancels or undoes a change, assume they did so for a reason and leave it intact. If the user changes topic, treat the new message as the new task.
                 </no_reverts>

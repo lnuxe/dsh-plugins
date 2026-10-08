@@ -7,6 +7,7 @@
 | A | `@local/cursor-skills` | `cursor-skills/` | `~/.cursor/skills-cursor/`（26 个内置 skill） |
 | B | `@local/cursor-mcp` | `cursor-mcp/` | `~/.cursor/mcp.json`（8 个 MCP server） |
 | C | `@local/cursor-persona` | `cursor-persona/` | Cursor 系统提示词（`cursor-agent-host` 内嵌） |
+| D | `@local/cursor-telemetry` | `cursor-telemetry/` | Cursor 可观测性（skill 触发 / 目录变更 / goal 生命周期） |
 
 ---
 
@@ -49,14 +50,14 @@
 
 ### 3. 系统 Skill
 
-`~/.cursor/skills-cursor/` 共 **26 个内置 skill**，每个是一个 `<name>/SKILL.md`：
+`~/.cursor/skills-cursor/` 共 **27 个内置 skill**，每个是一个 `<name>/SKILL.md`：
 
 - YAML frontmatter：`name`、`description`（常用 `>-` 折叠块标量）、可选 `disable-model-invocation`。
 - `disable-model-invocation: true` 表示只能走斜杠命令（`/goal`、`/review` 等），不被模型自主调用。
 - 少数 skill 带附属资源：`canvas/sdk/*.d.ts`、`visualize/references/*.md`。
 - 清单文件：`.cursor-managed-skills-manifest.json`（`builtinSkillIds` + `managedSkillIds`）、`.sync-manifest.json`。
 
-26 个 skill：automate、autopilot、canvas、create-hook、create-rule、create-skill、create-subagent、deploy-with-vercel、goal、loop、migrate-to-skills、new-repo、onboard、origin、rename-chat、review、review-bugbot、review-security、sdk、share、shell、split-to-prs、statusline、update-cli-config、update-cursor-settings、visualize。
+27 个 skill：automate、autopilot、canvas、create-hook、create-rule、create-skill、create-subagent、cursor-orchestrator、deploy-with-vercel、goal、loop、migrate-to-skills、new-repo、onboard、origin、rename-chat、review、review-bugbot、review-security、sdk、share、shell、split-to-prs、statusline、update-cli-config、update-cursor-settings、visualize。
 
 其中 `disable-model-invocation: true` 的有 8 个：create-subagent、deploy-with-vercel、goal、migrate-to-skills、onboard、rename-chat、review、shell。
 
@@ -91,7 +92,7 @@
 
 ---
 
-## 三、交付的三个插件
+## 三、交付的四个插件
 
 ### 插件 A — `@local/cursor-skills`（Host skill provider）
 
@@ -129,29 +130,44 @@ cursor-persona/
 - 新增可选 preset `cursor`（order 20），`persona.prefix` = 移植后的 Cursor 系统提示词，`suffix` = `Your working directory is {{cwd}}.`
 - 工具集与 standard 对齐：bash/pwsh/fs/fs-search/jobs、skill-filesystem + tool-skill、goal、ask-user、todo、web、present、subagent(fork)。
 
+### 插件 D — `@local/cursor-telemetry`（可观测性）
+
+```
+cursor-telemetry/
+├── package.json
+├── cordis.patch.yml        # - insert: cursor-telemetry -> @local/cursor-telemetry
+└── index.js                # 内存态统计：ctx.cursorTelemetry
+```
+
+- 零依赖，挂 host 全局层。包装 `ctx.skills.get`（`skill` 工具与 `/name` 调用共同的唯一入口）记录 skill 触发次数；监听 `skills/change` 与 `goal/changed` 记录目录失效与 goal 生命周期。
+- 统计句柄 `ctx.cursorTelemetry`：`.stats()`（按触发次数降序的 skillLoads、skillCatalogChanges、goalChangeCount、recentGoalChanges）、`.reset()`。
+- 内存态，重启清零；dispose 时恢复 `ctx.skills.get` 并移除句柄。
+
 ---
 
 ## 四、安装与验证
 
-三个 bundle 已通过 `plugin_manager install_bundle` 装进 `web` profile（`list_bundles` 可见，均为 `link:` 到本工作目录）：
+四个 bundle 已通过 `plugin_manager install_bundle` 装进 `web` profile（`list_bundles` 可见，均为 `link:` 到本工作目录）：
 
 ```
-@local/cursor-skills   -> row cursor-skills
-@local/cursor-mcp      -> 8 rows cursor-mcp-*
-@local/cursor-persona  -> row preset-cursor
+@local/cursor-skills      -> row cursor-skills (27 skills)
+@local/cursor-mcp         -> 8 rows cursor-mcp-*
+@local/cursor-persona     -> row preset-cursor
+@local/cursor-telemetry   -> row cursor-telemetry
 ```
 
 **运行时验证结果**：
 
-- ✅ 26 个 Cursor skill 已进入 skill catalog。
+- ✅ 27 个 Cursor skill 已进入 skill catalog（含 `cursor-orchestrator`）。
 - ✅ MCP 工具已注册（`Tool.listTools` 实测可见）：`mcp__dart__*`、`mcp__mobile-mcp__*`、`mcp__wdio-mcp__*`、`mcp__appium-mcp__*`、`mcp__adb-mcp__*`、`mcp__perfdog-mcp-tools__*`。
 - ✅ `preset-cursor` 已注册到 `agentPresets` 行表。
+- ✅ `cursor-telemetry` 已注册，`ctx.cursorTelemetry` 提供 skill 触发 / 目录变更 / goal 生命周期统计（内存态，重启清零）。
 
 ---
 
 ## 五、已知限制与迁移注意
 
-1. **重启生效**：`cursor-skills` 的 `index.js` 模块（manifest 描述修正）与 `cursor-mcp` 的 token `!!js` 需重启 dsh 才会在运行进程重新加载；`preset-cursor` 需重启后在 preset 选择器里切到 **Cursor** 才挂载 persona。
+1. **重启生效**：`cursor-skills` 的 `index.js` 模块（manifest 描述修正）与 `cursor-mcp` 的 token `!!js` 需重启 dsh 才会在运行进程重新加载；`preset-cursor` 需重启后在 preset 选择器里切到 **Cursor** 才挂载 persona；`cursor-telemetry` 需重启后才挂载 `ctx.cursorTelemetry`。
 2. **`android-mcp`（uvx）**：首次 `uvx android-mcp` 会下载建 venv，慢/易超时；本快照里未注册。它和 `adb-mcp` 功能重叠，可保留或去掉。
 3. **Cursor 专属工具映射缺失**：若干 Cursor skill 引用了 DSH 没有的 Cursor 工具/命令，例如 `CreateGoal`/`AskQuestion`/`CreateOrUpdateRule`、`/review-bugbot` 斜杠命令、`use_browser`、`gh` 等。已原样保留 skill 文本（忠实逆向），实际调用时这些工具名在 DSH 不存在，模型会改走 DSH 等价物（`create_goal`/`ask_user_question`/`subagent`/`bash` 等）。如需严格对齐，可在这些 skill 里补 DSH 工具名映射。
 4. **token 安全**：perfdog 的 token 仍以明文存于 `~/.cursor/mcp.json`（Cursor 原样），插件只做运行时引用，不复制、不落盘到 profile。

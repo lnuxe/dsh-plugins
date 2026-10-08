@@ -180,5 +180,12 @@
     "modelInvocable": true,
     "userInvocable": true,
     "dir": "visualize"
+  },
+  {
+    "name": "cursor-orchestrator",
+    "description": "Long-running goal orchestration for complex multi-step projects: plan, delegate to subagents, keep durable cross-turn state (progress.md), and parallelize safely. Use when a task spans many steps or files, needs subagent delegation, or risks losing state across context condensation.",
+    "modelInvocable": true,
+    "userInvocable": true,
+    "dir": "cursor-orchestrator"
   }
 ]

@@ -1,0 +1,17 @@
+# Cursor-style agent lifecycle hooks.
+#
+# Cursor dispatches 10 lifecycle events (PreToolUse / PostToolUse /
+# UserPromptSubmit / Stop / SubagentStop / SessionStart / SessionEnd /
+# PreCompact / PermissionRequest) to user scripts listed in hooks.json.
+# DSH already emits the equivalent Cordis events; this plugin bridges them to
+# user shell commands. Each command receives one JSON object on stdin
+# ({ "hook": ..., ...payload }) and runs fire-and-forget (observation / side
+# effects only — it never vetoes the agent).
+- insert:
+    - id: cursor-hooks
+      name: '@local/cursor-hooks'
+      config:
+        # Cursor hook name -> shell command. Command receives one JSON object
+        # on stdin ({ "hook": ..., ...payload }); fire-and-forget.
+        #   PostToolUse: "cat >> /tmp/tool-uses.jsonl"
+        hooks: {}

@@ -1,5 +1,5 @@
 {
-  "name": "dsh-cursor-telemetry",
+  "name": "@local/cursor-telemetry",
   "version": "1.0.0",
   "description": "Cursor-style skill/goal telemetry for DeepSeek Harness: in-memory counters for skill loads, catalog changes, and goal lifecycle, exposed as ctx.cursorTelemetry.",
   "type": "module",

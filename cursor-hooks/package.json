@@ -1,0 +1,14 @@
+{
+  "name": "@local/cursor-hooks",
+  "version": "1.0.0",
+  "description": "Cursor-style agent lifecycle hooks for the DeepSeek Harness (PreToolUse / PostToolUse / SubagentStop / SessionStart / SessionEnd / Stop).",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": ["locale/*.json"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}

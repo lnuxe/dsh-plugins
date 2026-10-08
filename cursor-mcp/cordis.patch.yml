@@ -41,7 +41,7 @@
         command: npx
         args: ['appium-mcp@latest']
         env:
-          ANDROID_HOME: /Users/v_ldjnlin/Library/Android/sdk
+          ANDROID_HOME: !!js "(function(){return process.env.ANDROID_HOME || (process.env.HOME + '/Library/Android/sdk');})()"
 
     - id: cursor-mcp-adb
       name: '@deepseek-ai/dsh-mcp-client'

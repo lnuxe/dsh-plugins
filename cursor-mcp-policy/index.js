@@ -5,11 +5,14 @@
 //   2. toolAllowlistByServer   — per-server allowlist
 //   3. userDisabledToolKeys    — single-tool disable
 // DSH registers whole MCP servers as global tools named `mcp__<server>__<tool>`.
-// A context-global `tools.restrict()` is rejected (it would mask every agent),
-// so this plugin installs a plain-context `tools.guard()` — which IS global —
-// and denies any call whose name falls outside the policy. Denied tools stay
-// visible to the model but fail on dispatch, matching Cursor's "block at use"
-// for `userDisabledToolKeys`.
+//
+// Two complementary mechanisms, matching Cursor's dual behavior:
+//   - Per-agent `tools.restrict({ deny })` REMOVES the denied MCP tools from that
+//     agent's visible tool set (the model no longer sees them). Registered on
+//     `agent.ctx` in an `agent/created` listener, so it unwinds on agent disposal.
+//   - A plain-context `tools.guard()` denies any call that still reaches dispatch
+//     (a tool registered after the restriction snapshot, or a config change),
+//     matching Cursor's "block at use" for `userDisabledToolKeys`.
 //
 // Zero-dependency on purpose: `link:` bundles do not install their own
 // dependencies, so only node builtins are imported.
@@ -41,9 +44,33 @@ export function apply(ctx, config = {}) {
     return false;
   }
 
-  return ctx.tools.guard((execution) =>
+  // Dispatch-time denial, global, monotonic.
+  const disposeGuard = ctx.tools.guard((execution) =>
     isDenied(execution.name)
       ? `MCP tool "${execution.name}" is disabled by cursor-mcp-policy`
       : undefined,
   );
+
+  // Per-agent removal: hide denied MCP tools from each agent's tool surface.
+  const restrictions = new Set();
+  const disposeListener = ctx.on("agent/created", ({ agent }) => {
+    const denied = [];
+    for (const schema of ctx.tools.schemas()) {
+      if (isDenied(schema.name)) denied.push(schema.name);
+    }
+    if (denied.length === 0) return;
+    try {
+      restrictions.add(agent.ctx.tools.restrict({ deny: denied }));
+    } catch {
+      // `restrict` rejects unknown/reserved names; the guard still denies at
+      // dispatch, so the policy holds even when removal cannot be applied.
+    }
+  });
+
+  return () => {
+    disposeListener();
+    disposeGuard();
+    for (const d of restrictions) d();
+    restrictions.clear();
+  };
 }

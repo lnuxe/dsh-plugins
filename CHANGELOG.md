@@ -2,6 +2,15 @@
 
 本仓库遵循语义化版本（SemVer）。四个 bundle 插件各自维护版本号，仓库级 tag 对齐 cursor-persona 的主版本号。
 
+## [1.5.0] - 2026-10-08
+
+### Added
+- `cursor-rules` 插件（新 bundle G）：Cursor Rules 系统的 DSH 移植——读取 `.cursor/rules/*.mdc`（YAML frontmatter `description`/`globs`/`alwaysApply`），`alwaysApply: true` 的规则注入为 per-agent system-prompt 分节（`cursor:workspace-rules`，order 400），`globs` 规则按 name+description+glob 广告（agent 按需读文件）。
+- 逆向补全（写入 docs）：Cursor 规则系统（`.cursor/rules/*.mdc` + `AGENTS.md` + 三级规则 always/glob/agent_requestable）、20 个系统提示词分节有序数组、subagent 结构化回收（`modified_files`/`git_branch`/`loop_count`/`task`/`description`）、流式注入（`info_complete`）。
+
+### Changed
+- `cursor-mcp-policy` 增强：新增 per-agent `tools.restrict({ deny })` 真正移除被禁 MCP 工具（模型不再可见），保留全局 `tools.guard` 兜底（dispatch 时 deny）。修复此前"guard 仅 deny、工具仍可见"的语义缺口。
+
 ## [1.4.0] - 2026-10-08
 
 ### Added

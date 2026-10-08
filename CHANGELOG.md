@@ -2,6 +2,14 @@
 
 本仓库遵循语义化版本（SemVer）。四个 bundle 插件各自维护版本号，仓库级 tag 对齐 cursor-persona 的主版本号。
 
+## [1.3.0] - 2026-10-08
+
+### Added
+- `docs/cursor-orchestration-reverse.md`：Cursor 系统工程「触发与编排」深度逆向——一次 turn 的完整触发链、系统提示词分节组装（含 `info_complete` 流式注入）与变体选择、skill 门控（`disable-model-invocation` / `alwaysApply` / `environments`）、MCP 懒加载 + 工具级 allowlist 过滤、hook 事件系统（10 个生命周期事件点）、subagent/compaction/exec-server 编排协议，以及与 DSH 的逐项差异对比 + 可借鉴清单。
+
+### Changed
+- `README.md`：新增「触发与编排逆向」报告入口。
+
 ## [1.2.0] - 2026-10-08
 
 ### Added

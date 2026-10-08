@@ -1,5 +1,6 @@
 {
   "name": "@local/cursor-telemetry",
+  "private": true,
   "version": "1.0.0",
   "description": "Cursor-style skill/goal telemetry for DeepSeek Harness: in-memory counters for skill loads, catalog changes, and goal lifecycle, exposed as ctx.cursorTelemetry.",
   "type": "module",
@@ -20,9 +21,6 @@
     "deepseek-harness"
   ],
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lnuxe/dsh-cursor.git"

@@ -1,0 +1,29 @@
+{
+  "name": "dsh-cursor-mcp",
+  "version": "1.0.0",
+  "description": "Cursor MCP servers (from ~/.cursor/mcp.json) re-packaged as DeepSeek Harness mcp-client rows (8 servers; HTTP secrets read at load time from the Cursor config).",
+  "type": "module",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "cursor",
+    "mcp",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnuxe/dsh-cursor.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

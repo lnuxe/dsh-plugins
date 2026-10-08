@@ -1,0 +1,22 @@
+{
+  "heading": "本 skill 源自 Cursor，正文引用了 Cursor 专属的工具/命令。在 DeepSeek Harness 中使用其等价物：",
+  "mapping": {
+    "AskQuestion": { "to": "ask_user_question", "note": "向用户提问（可带选项）" },
+    "CreateGoal": { "to": "create_goal", "note": "创建持久化目标" },
+    "TodoWrite": { "to": "todo_write", "note": "记录/更新任务清单" },
+    "SwitchMode": { "to": "exit_plan_mode", "note": "DSH 无 agent/ask 模式切换；plan 模式下用 exit_plan_mode 退出" },
+    "Bugbot": { "to": "subagent", "note": "Bugbot 是 Cursor 的代码审查子代理，DSH 用 subagent 委派同类审查工作" },
+    "gh": { "to": "bash", "note": "通过 bash 执行 gh CLI（若本机已安装 gh）" },
+    "/review-bugbot": { "to": "skill review-bugbot", "note": "已作为 DSH skill 导入，用 skill 工具加载" },
+    "/review-security": { "to": "skill review-security", "note": "已作为 DSH skill 导入，用 skill 工具加载" },
+    "/goal": { "to": "create_goal / skill goal", "note": "目标用 create_goal 工具；goal skill 已导入" },
+    "/loop": { "to": "skill loop", "note": "已作为 DSH skill 导入" },
+    "/onboard": { "to": "skill onboard", "note": "已作为 DSH skill 导入" },
+    "/rename-chat": { "to": "skill rename-chat", "note": "已作为 DSH skill 导入" },
+    "/statusline": { "to": "skill statusline", "note": "已作为 DSH skill 导入" },
+    "/create-rule": { "to": "skill create-rule", "note": "已作为 DSH skill 导入" },
+    "/create-skill": { "to": "skill create-skill", "note": "已作为 DSH skill 导入" },
+    "/create-subagent": { "to": "skill create-subagent", "note": "已作为 DSH skill 导入" },
+    "/share": { "to": "skill share", "note": "已作为 DSH skill 导入" }
+  }
+}

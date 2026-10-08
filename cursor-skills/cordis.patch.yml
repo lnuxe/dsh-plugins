@@ -1,0 +1,6 @@
+# Cursor built-in skills as a DeepSeek Harness bundled skill provider.
+# Registers a host-level (global-layer) provider on ctx.skills, so the 26
+# Cursor skills appear in every agent's catalog alongside the shipped dsh skills.
+- insert:
+    - id: cursor-skills
+      name: '@local/cursor-skills'

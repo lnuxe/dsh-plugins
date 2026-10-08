@@ -2,6 +2,19 @@
 
 本仓库遵循语义化版本（SemVer）。四个 bundle 插件各自维护版本号，仓库级 tag 对齐 cursor-persona 的主版本号。
 
+## [1.4.0] - 2026-10-08
+
+### Added
+- `cursor-mcp-policy` 插件（新 bundle E）：Cursor 三级 MCP 过滤的 DSH 移植——`enabledServers`（server 开关）+ `toolAllowlist`（per-server 工具白名单）+ `denyTools`（单工具禁用）。DSH 无 context-global `tools.restrict`（会遮蔽所有 agent），改用 plain-context `tools.guard`（全局守卫，被禁工具调用时返回 deny 原因）。
+- `cursor-hooks` 插件（新 bundle F）：Cursor 生命周期 hook 的 DSH 移植——把 7 个 Cursor hook 事件桥接到 DSH 事件（PreToolUse→`tools/pre-execute`、PostToolUse→`tools/result`、UserPromptSubmit→`agent/inbox/inserted`、Stop→`agent/turn-stopping`、SubagentStop→`subagent/end`、SessionStart→`agent/created`、SessionEnd→`agent/disposed`）；用户 shell 命令经 stdin 收 JSON payload（fire-and-forget，第一版观察模式不 veto）。
+- cursor-skills 增强：manifest 增补 `environments`/`disabled-environments` 并透传进 `SkillCandidate.metadata`（`entryMetadata`）。
+
+### Fixed
+- `docs/cursor-orchestration-reverse.md` §六：纠正 `alwaysApply` 误判——Cursor skill 的真实 frontmatter 字段是 `environments`/`disabled-environments`，`alwaysApply` 并非真实字段。
+
+### Changed
+- 全部本地 bundle 的 package `name` 统一为 `@local/<id>`（与 `cordis.patch.yml` 的 row `name` 一致），修复 `@local/cursor-telemetry` 等模块的 `failed to import`。
+
 ## [1.3.0] - 2026-10-08
 
 ### Added

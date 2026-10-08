@@ -85,7 +85,6 @@ README 已提取到 **3 个提示词变体**：
 
 ```js
 for (const skill of skills) {
-  if (skill.alwaysApply === true) continue;      // alwaysApply 直接纳入
   let disableModelInvocation = false;
   if (skill.content?.includes("disable-model-invocation")) {
     try {
@@ -273,7 +272,7 @@ git_diff_request / conversation_search_args ...
 |------|--------|-----|------|
 | 提示词组装 | 分节硬编码数组 + `info_complete` 流式注入 | `systemPrompt` service：`section`/`context`/`variable`/`assemble`，`getSectionOrder` 排序 | DSH 是**可插拔服务**，Cursor 是**内置数组**；Cursor 有流式注入优化 |
 | 提示词变体 | AGENT-BASE / AGENTIC-CURSOR / COMPOSER 绑传输后端 | `agentPresets`（prefix/suffix），多 preset 可切换 | DSH 的 preset 更"用户可组合"，Cursor 的变体更"后端决定" |
-| skill 注入 | 只注入 description（`agent_skill` 标签），按 `fullPath` 读 content | catalog 注入 name+description，按需 `get()` 读 content | 思想一致；DSH 多了 `whenToUse` 字段，Cursor 多了 `alwaysApply`/`environments`/`scopedTo` |
+| skill 注入 | 只注入 description（`agent_skill` 标签），按 `fullPath` 读 content | catalog 注入 name+description，按需 `get()` 读 content | 思想一致；DSH 多了 `whenToUse` 字段，Cursor 多了 `environments`/`disabled-environments`/`scopedTo` |
 | skill 门控 | `disable-model-invocation`（YAML 解析）| `invocation.modelInvocable: false` | **已映射**（插件 A）|
 | skill 更新 | 目录变化 4s debounce 批量刷新 | `list()` 每次读 manifest（插件 A）| DSH 更即时，Cursor 有防抖 |
 | MCP 注册 | 懒加载 `listOfferings`（骨架先建）| `dsh-mcp-client` 每 server 一行，工具注册为 `mcp__<s>__<t>` | DSH 是静态声明 + 工具平铺，Cursor 是运行时懒加载 |
@@ -295,8 +294,8 @@ git_diff_request / conversation_search_args ...
 2. **Agent 生命周期 hook 事件**（价值高，成本中）
    Cursor 的 10 个事件点（PreToolUse/PostToolUse/Stop/SubagentStop/PreCompact...）在 DSH 没有成熟对应物。可做 `dsh-agent-hooks`：在 `tools.execute` 包装器 + `goals`/`compaction` service 上发事件，让用户挂脚本。
 
-3. **skill 的 `alwaysApply` 与 `environments` 字段**
-   Cursor skill 支持"始终注入"（alwaysApply）和"环境过滤"（environments/disabled_environments）。DSH 的 skill candidate 目前只有 `whenToUse`/`invocation`。可扩展 manifest 增加 `alwaysApply`，跳过模型自主匹配直接可用。
+3. **skill 的 `environments` / `disabled-environments` 字段**
+   Cursor skill 用 `environments`（可用环境）和 `disabled-environments`（禁用环境）做环境过滤（注意：`alwaysApply` 并非真实 frontmatter 字段，属先前误判）。DSH 的 skill candidate 目前只有 `whenToUse`/`invocation`。已扩展 manifest，把这两个字段透传进 `SkillCandidate.metadata`（插件 A），供 DSH 侧按环境决定是否注入。
 
 4. **流式上下文注入（info_complete 标志）**
    Cursor 的分节 `info_complete` 允许渐进注入、降低首 token 延迟。DSH 的 `systemPrompt.assemble` 是一次性。可作为性能优化方向（非本次交付）。
@@ -315,7 +314,7 @@ git_diff_request / conversation_search_args ...
 | MCP 懒加载 + 工具注册 | 插件 B `cursor-mcp`（8 server → 144 工具）| ✅ 已交付 |
 | 提示词变体移植 | 插件 C `cursor-persona`（preset `cursor`）| ✅ 已交付 |
 | skill/目录/goal 可观测 | 插件 D `cursor-telemetry` | ✅ 已交付 |
-| MCP 工具级 allowlist / hook 事件 / alwaysApply | **本文档 §6 建议，尚未实现** | ⬜ 候选 |
+| MCP 工具级 allowlist / hook 事件 / environments 元数据 | 插件 E `cursor-mcp-policy` + 插件 F `cursor-hooks` + 插件 A metadata | ✅ 已交付 |
 
 ---
 
@@ -323,7 +322,7 @@ git_diff_request / conversation_search_args ...
 
 - 编排核心：`extensions/cursor-agent-host/dist/main.js`（12 MB）— `KOe`（activate）、`createAgentHostExec`、exec server 消息枚举。
 - 提示词分节数组：`main.js` 内 `["always_applied_workspace_rules", ...]` 有序数组。
-- skill 门控：`main.js` 内 `for (const l of t.skills) { if (!0 === l.alwaysApply) continue; ... disable-model-invocation ... }`。
+- skill 门控：`main.js` 内 `for (const l of t.skills) { ... jsYaml.parse(l.content)["disable-model-invocation"] === true ... }`。
 - skill 渲染：`main.js` 内 `function Rte(e){ return e.map(e=>wK("x",{tag:"agent_skill",fullPath:e.fullPath,children:e.description...}))}`。
 - MCP 过滤：`extensions/cursor-mcp/dist/main.js` 内 `function bA({policy,serverIdentifier,toolName,annotations})`。
 - MCP 懒加载：`cursor-mcp` 内 `registerMcpProviderToManager`（`listOfferings` 缓存）。

@@ -1,0 +1,18 @@
+# Cursor-style tool-level MCP policy.
+#
+# Cursor resolves each turn's tool set through a three-level filter (main.js
+# `bA()`): enabledServerIds (server switch) -> toolAllowlistByServer
+# (per-server allowlist) -> userDisabledToolKeys (single-tool disable).
+# DSH registers whole MCP servers as global tools named `mcp__<server>__<tool>`,
+# so this plugin recreates the same filter by denylisting the tools that fall
+# outside the policy. Leave all three lists empty for "everything enabled".
+- insert:
+    - id: cursor-mcp-policy
+      name: '@local/cursor-mcp-policy'
+      config:
+        # Only these MCP servers stay visible (empty = all servers enabled).
+        enabledServers: []
+        # Per-server allowlist: { "<serverName>": ["toolA", "toolB"] }.
+        toolAllowlist: {}
+        # Single-tool disable: ["mcp__<server>__<tool>", ...].
+        denyTools: []

@@ -9,7 +9,7 @@
 | C | `@local/cursor-persona` | `cursor-persona/` | Cursor 系统提示词（`cursor-agent-host` 内嵌） |
 | D | `@local/cursor-telemetry` | `cursor-telemetry/` | Cursor 可观测性（skill 触发 / 目录变更 / goal 生命周期） |
 | E | `@local/cursor-mcp-policy` | `cursor-mcp-policy/` | Cursor MCP 工具级过滤（server 开关 / allowlist / 单工具禁用） |
-| F | `@local/cursor-hooks` | `cursor-hooks/` | Cursor 生命周期 hook（7 个事件点桥接到 shell） |
+| F | `@local/cursor-hooks` | `cursor-hooks/` | Cursor 生命周期 hook（PreToolUse veto 门 + 7 事件桥接） |
 | G | `@local/cursor-rules` | `cursor-rules/` | Cursor Rules（`.cursor/rules/*.mdc` → system-prompt 分节） |
 
 ---
@@ -173,7 +173,7 @@ cursor-hooks/
 ```
 
 - 7 个事件点桥接：`PreToolUse→tools/pre-execute`、`PostToolUse→tools/result`、`UserPromptSubmit→agent/inbox/inserted`、`Stop→agent/turn-stopping`、`SubagentStop→subagent/end`、`SessionStart→agent/created`、`SessionEnd→agent/disposed`。
-- 每个 hook 的 shell 命令经 stdin 收一个 JSON 对象（`{ "hook": ..., ...payload }`），fire-and-forget；第一版为**观察模式**（不 veto，waterfall 一律 `next()`）。
+- 每个 hook 的 shell 命令经 stdin 收一个 JSON 对象（`{ "hook": ..., ...payload }`）。`PreToolUse` 为 **veto 门**：exit code 2 或 stdout `{"permissionDecision":"deny"}` 阻止工具派发（`tools/pre-execute` 返回 `{ kind:"deny", reason }`）；其余事件 fire-and-forget（观察）。
 
 ### 插件 G — `@local/cursor-rules`（Cursor Rules）
 
@@ -225,7 +225,7 @@ cursor-rules/
 3. **Cursor 专属工具映射缺失**：若干 Cursor skill 引用了 DSH 没有的 Cursor 工具/命令，例如 `CreateGoal`/`AskQuestion`/`CreateOrUpdateRule`、`/review-bugbot` 斜杠命令、`use_browser`、`gh` 等。已原样保留 skill 文本（忠实逆向），实际调用时这些工具名在 DSH 不存在，模型会改走 DSH 等价物（`create_goal`/`ask_user_question`/`subagent`/`bash` 等）。如需严格对齐，可在这些 skill 里补 DSH 工具名映射。
 4. **token 安全**：perfdog 的 token 仍以明文存于 `~/.cursor/mcp.json`（Cursor 原样），插件只做运行时引用，不复制、不落盘到 profile。
 5. **描述字段**：Cursor skill 的 `description` 常用折叠块标量（`>-`），已在 `skills-manifest.json` 生成时用 js-yaml 正确折叠。
-6. **hook 观察模式**：`cursor-hooks` 第一版 fire-and-forget，waterfall 事件（PreToolUse）一律 `next()` 不 veto。被禁 MCP 工具由 `cursor-mcp-policy` 双层处理：`restrict` 移除（模型不可见）+ `guard` 兜底（dispatch 时 deny）。如需 hook"拒绝工具调用并给模型反馈"，属后续增强。
+6. **hook veto 语义**：`cursor-hooks` 的 `PreToolUse` 已支持 veto（exit 2 / `permissionDecision=deny` 阻止工具派发），其余事件仍 fire-and-forget（观察）。被禁 MCP 工具由 `cursor-mcp-policy` 双层处理：`restrict` 移除（模型不可见）+ `guard` 兜底（dispatch 时 deny）。
 7. **cursor-rules glob 规则**：`globs` 规则只广告（name+description+glob），不内联内容；agent 需按需读 `.cursor/rules/*.mdc`。真正"文件匹配时自动注入"需监听 fs touch + glob 匹配，属后续增强。
 
 ---

@@ -15,6 +15,9 @@
 
 > 本仓库另附一篇方法论调研报告，回答"顺滑"背后的工程决策（系统提示词分节 / skill 检索 / MCP 自动发现 / 上下文注入 / 长任务编排），并给出可借鉴清单：
 > 见 [docs/why-cursor-is-smooth.md](docs/why-cursor-is-smooth.md)。
+>
+> 以及一篇**触发与编排逆向**报告，拆解 MCP / skill / 系统提示词的具体触发条件与编排协议，并与 DSH 逐项对比（含可落地的差异清单）：
+> 见 [docs/cursor-orchestration-reverse.md](docs/cursor-orchestration-reverse.md)。
 
 ---
 

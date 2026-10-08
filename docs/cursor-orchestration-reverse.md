@@ -106,6 +106,26 @@ function rne({ cloudRuleContent: e }) {
 
 > 对应落地：`cursor-rules` 已把 AGENTS.md 作为独立 `cursor:cloud-instructions` 分节注入（`agentsMd` 开关，从 cwd 向上遍历收集）。
 
+### 1.4 `*_info_complete` 渐进注入（TTFT 优化）
+
+`RequestContext` proto 里 9 个 bool 标量成对跟在 section 字段后面，标记该 section 内容是否**已完整加载**（全部 `kind:"scalar", T:8` = bool，`opt:!0` 可选）：
+
+| no | section | info_complete 标志 |
+|----|---------|-------------------|
+| 31 | rules（message） | → 39 `rules_info_complete` |
+| 32 | git_repo | → 33 `git_repo_info_complete` |
+| 35 | mcp | → 36 `mcp_info_complete` |
+| — | env | → 40 `env_info_complete` |
+| — | repository | → 41 `repository_info_complete` |
+| — | custom_subagents | → 42 `custom_subagents_info_complete` |
+| — | agent_skills | → 43 `agent_skills_info_complete` |
+| — | mcp_file_system | → 44 `mcp_file_system_info_complete` |
+| — | git_status | → 45 `git_status_info_complete` |
+
+语义：请求上下文的组装是**两段式**——先发能立刻得到的骨架 + 快 section（`*_info_complete=false`），后台继续加载慢 IO section（git_repo / mcp 工具列表 / rules 文件 / env / repository / custom_subagents / agent_skills / mcp_file_system / git_status），每个 section 加载完就填内容并置 `*_info_complete=true`。模型据此可以先开始推理（降 TTFT），慢 section 陆续补全。
+
+> 落地判断：DSH 的 `systemPrompt.assemble()` 是 async 但**一次性组装完再发**，无"先骨架后补全"两段语义。复刻需改 DSH 的 prompt 组装为流式分节（AsyncIterable 产出），属 DSH 上游性能优化，不是 cursor-* bundle 能做的。
+
 ---
 
 ## 二、系统 Skill 的触发与门控
@@ -318,6 +338,23 @@ git_diff_request / conversation_search_args ...
 **`swarm_overview`**（Grind，多级并行）：Orchestrator → Planner（探索/委派）→ Worker（实现/提交）+ Sub-planner（细分委派）；每个 agent 隔离 git clone，Worker push 到共享分支走 rebase。
 
 > 对应落地：`cursor-orchestrator` bundle 把 parent_orchestrator_overview / project_mode / hard_constraints / progress_md_protocol 做成 DSH 的 `cursor-orchestrator` preset（工具映射 CREATE_TASK→subagent、SEND_TO_TASK→send_message、AskQuestion→ask_user_question）。
+
+### 4.7 Canvas（ShareCanvas RPC 系统）
+
+Canvas 不是 agent 工具，而是一套 **RPC 服务**（`agent.v1` / `aiserver.v1`），本质是"把分析结果做成可分享的 live React app"：
+
+- **核心**：`ShareCanvasRequest { title, visibility, app_js, data }`——`app_js` 是 agent 产出的**自包含 React app JS 源码**，`visibility` 控制 private/team/public。
+- **管理**：`ListUserCanvases` / `GetCanvasMetadata` / `GetCanvasPayload` / `DeleteCanvas`（store_id + canvas_id）。
+- **分享**：`GetSharedCanvas` / `GetPublicSharedCanvas` / `ListSharedCanvases` / `LookupSharedCanvasByKey` / `DeleteSharedCanvas`（share_id）。
+- **可见性**：`SetCanvasVisibility` / `UpdateTeamSharedCanvasSettings` / `GetTeamSharedCanvasSettings`（CANVAS_VISIBILITY_PRIVATE / TEAM_VIEW / UNSPECIFIED）。
+- **存储**：`canvas_store_roots` / `canvases_root` / `USER_STORE_CANVASES_DIR` / `AUTOMATION_STORE_CANVASES_DIR`；`setHostCanvasPeerAgentStoreFilesDirsHook` 让 peer agent 共享 canvas 存储目录。
+- **诊断**：`CanvasDiagnosticsArgs { path, tool_call_id }` → `CanvasDiagnosticsSuccess/Error`。
+
+激活分两种（`KOe` activate 内）：
+- `move_exec` feature gate → `createIdeCanvasActivate`（完整 canvas RPC + store + 分享）。
+- `local_loop` → `createIdeCanvasDiagnostics`（仅诊断消息）。
+
+> 落地判断：DSH 无 live React app 渲染容器（这是 Cursor client UI 的 canvas 面板：sandbox iframe 渲染 `app_js`）。bundle 只能加 host plugin / preset，不能改 client UI 渲染。DSH 等价物是 `present` 工具（declare files as deliverables）+ 前端渲染 HTML/图片（静态）。完整复刻需 DSH client 新增 canvas 面板 + host 侧 canvas store RPC，属上游功能。
 
 ---
 

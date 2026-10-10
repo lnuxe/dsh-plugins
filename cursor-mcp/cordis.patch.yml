@@ -4,21 +4,13 @@
 # the system prompt of whatever agent can see it, so servers are split by usage
 # frequency instead of all registered globally:
 #
-#   - mobile-test preset (@local/cursor-mcp-mobile): mobile-mcp, appium-mcp,
-#     wdio-mcp, adb-mcp, dart — the ~105 mobile-testing/Flutter tools that only
-#     mobile-test sessions need.
+#   - mobile-test preset (@local/cursor-mcp-mobile): perfdog-mcp-tools,
+#     mobile-mcp, appium-mcp, wdio-mcp, adb-mcp, dart — the testing/Flutter
+#     servers that only test sessions need.
 #
 # This mirrors Cursor's per-turn tool visibility (enabledServerIds +
 # toolAllowlistByServer): the model only pays for the tools of its current agent.
 #
-# The streamable-http servers read their secrets at load time from
+# The streamable-http server reads its secret at load time from
 # ~/.cursor/mcp.json via a `!!js` Loader expression (no secret is copied here).
 - insert:
-    - id: cursor-mcp-perfdog
-      name: '@deepseek-ai/dsh-mcp-client'
-      config:
-        serverName: perfdog-mcp-tools
-        transport: streamable-http
-        url: https://perfdog.qq.com/mcp
-        headers:
-          Mcp_token: !!js "(function(){try{const fs=process.getBuiltinModule('fs');const c=JSON.parse(fs.readFileSync(process.env.HOME+'/.cursor/mcp.json','utf8'));return c.mcpServers['perfdog-mcp-tools'].headers['Mcp_token'];}catch(e){return '';}})()"

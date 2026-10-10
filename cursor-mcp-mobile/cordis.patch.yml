@@ -12,7 +12,7 @@
       config:
         id: mobile-test
         name: Mobile Test
-        description: '移动端测试 agent：appium / mobile-mcp / wdio / adb / dart 全量 MCP 工具，日常 coding 不加载。'
+        description: '测试 agent：perfdog / mobile-mcp / appium / wdio / adb / dart 全量 MCP 工具，日常 coding 不加载。'
         order: 40
         plugins:
           - id: persona
@@ -92,3 +92,11 @@
               transport: stdio
               command: dart
               args: ['mcp-server', '--experimental-mcp-server', '--force-roots-fallback']
+          - id: cursor-mcp-mobile-perfdog
+            name: '@deepseek-ai/dsh-mcp-client'
+            config:
+              serverName: perfdog-mcp-tools
+              transport: streamable-http
+              url: https://perfdog.qq.com/mcp
+              headers:
+                Mcp_token: !!js "(function(){try{const fs=process.getBuiltinModule('fs');const c=JSON.parse(fs.readFileSync(process.env.HOME+'/.cursor/mcp.json','utf8'));return c.mcpServers['perfdog-mcp-tools'].headers['Mcp_token'];}catch(e){return '';}})()"

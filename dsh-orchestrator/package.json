@@ -1,0 +1,27 @@
+{
+  "name": "@local/dsh-orchestrator",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Root-orchestrator agent preset (plan, delegate to subagents, durable progress.md state, safe parallelism).",
+  "type": "module",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+        "orchestrator",
+    "preset",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnuxe/dsh-plugins.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

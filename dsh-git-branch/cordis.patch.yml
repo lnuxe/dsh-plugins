@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-git-branch
+      name: '@local/dsh-git-branch'

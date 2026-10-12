@@ -1,0 +1,27 @@
+{
+  "name": "@local/dsh-persona",
+  "private": true,
+  "version": "1.2.1",
+  "description": "Agentic coding system prompt exposed as a selectable .agent. preset for DeepSeek Harness.",
+  "type": "module",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+        "persona",
+    "preset",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnuxe/dsh-plugins.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

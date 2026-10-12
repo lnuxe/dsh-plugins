@@ -1,0 +1,14 @@
+{
+  "name": "@local/dsh-mcp-policy",
+  "version": "1.0.0",
+  "description": "Per-tool MCP allowlist for the DeepSeek Harness (enabledServers / toolAllowlist / denyTools).",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": ["locale/*.json"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}

@@ -1,0 +1,16 @@
+# Workspace rules -> DSH system-prompt section.
+# Reads `.cursor/rules/*.mdc` (YAML frontmatter: description / globs / alwaysApply)
+# and injects always rules inline; glob rules are advertised by name + pattern.
+- insert:
+    - id: dsh-rules
+      name: '@local/dsh-rules'
+      config:
+        # Directory scanned for .mdc rules, resolved against the session cwd.
+        rulesDir: ".cursor/rules"
+        # Advertise glob-scoped rules (name + description + glob) for on-demand read.
+        advertiseGlobRules: true
+        # Per-rule content byte cap (0 = no cap).
+        maxRuleBytes: 8000
+        # Inject AGENTS.md (walked from cwd up to fs root) as a cloud_instructions
+        # section, mirroring the upstream "Instructions pulled from AGENTS.md".
+        agentsMd: true

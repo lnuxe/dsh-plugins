@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "MCP Policy",
+    "description": "per-tool MCP allowlist: enabledServers / toolAllowlist / denyTools."
+  }
+}

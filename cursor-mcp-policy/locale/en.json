@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Cursor MCP Policy",
-    "description": "Cursor-style per-tool MCP allowlist: enabledServers / toolAllowlist / denyTools."
-  }
-}

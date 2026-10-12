@@ -1,0 +1,3 @@
+- insert:
+    - id: cursor-git-branch
+      name: '@local/cursor-git-branch'

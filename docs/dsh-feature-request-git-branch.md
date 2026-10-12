@@ -74,6 +74,6 @@ affordances (status, diffs, commit author) for the community.
 ## Reference implementation
 
 A working community plugin (`dsh-plugin` topic) ships this today:
-`@local/cursor-git-branch` — host `git_branch` tool + client
+`@local/dsh-git-branch` — host `git_branch` tool + client
 `conversation.composer.dock` pill, with the submodule/worktree handling
 described above.

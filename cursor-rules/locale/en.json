@@ -1,6 +1,0 @@
-{
-  "meta": {
-    "title": "Cursor Rules",
-    "description": "Cursor Rules (.cursor/rules/*.mdc) injected as a per-agent system-prompt section."
-  }
-}

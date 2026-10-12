@@ -1,0 +1,6 @@
+# observability plugin (host layer).
+# Records skill loads, skill catalog changes, and goal lifecycle into an
+# in-memory ctx.dshTelemetry handle, available to the web UI and plugins.
+- insert:
+    - id: dsh-telemetry
+      name: '@local/dsh-telemetry'

@@ -1,0 +1,41 @@
+{
+  "name": "@local/dsh-skills",
+  "private": true,
+  "version": "1.1.0",
+  "description": "Bundled agent skills for DeepSeek Harness (26 skills with tool mapping).",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "skills-manifest.json",
+    "dshtool-map.json",
+    "skills",
+    "cordis.patch.yml"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+        "skills",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnuxe/dsh-plugins.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dshTarget": "0.2.0-rc.2"
+}

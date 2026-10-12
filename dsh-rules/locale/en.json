@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Workspace Rules",
+    "description": "Workspace rules (.cursor/rules/*.mdc) injected as a per-agent system-prompt section."
+  }
+}

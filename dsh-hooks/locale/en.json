@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Lifecycle Hooks",
+    "description": "agent lifecycle hooks: PreToolUse / PostToolUse / SubagentStop / SessionStart / SessionEnd / Stop."
+  }
+}

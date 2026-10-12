@@ -1,258 +1,117 @@
-# Cursor → DeepSeek Harness 逆向与插件集成
+# DeepSeek Harness 插件集合（dsh-plugins）
 
-把本机 `/Applications/Cursor.app` 的「系统工程」逆向出来，映射到 DeepSeek Harness (DSH)，并做成八个可安装的 DSH bundle 插件：
+一组自托管的 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）bundle 插件与 agent 预设，覆盖 agent 技能、移动测试 MCP、系统提示词、可观测性、MCP 工具过滤、生命周期 hook、工作区规则、根编排、浏览器自动化与 git 分支指示器等能力。
 
-| # | 交付物 | 路径 | 对应 Cursor 组件 |
-|---|--------|------|------------------|
-| A | `@local/cursor-skills` | `cursor-skills/` | `~/.cursor/skills-cursor/`（27 个内置 skill） |
-| B | `@local/cursor-mcp` | `cursor-mcp/` | `~/.cursor/mcp.json`（8 个 MCP server） |
-| C | `@local/cursor-persona` | `cursor-persona/` | Cursor 系统提示词（`cursor-agent-host` 内嵌） |
-| D | `@local/cursor-telemetry` | `cursor-telemetry/` | Cursor 可观测性（skill 触发 / 目录变更 / goal 生命周期） |
-| E | `@local/cursor-mcp-policy` | `cursor-mcp-policy/` | Cursor MCP 工具级过滤（server 开关 / allowlist / 单工具禁用） |
-| F | `@local/cursor-hooks` | `cursor-hooks/` | Cursor 生命周期 hook（PreToolUse veto 门 + 7 事件桥接） |
-| G | `@local/cursor-rules` | `cursor-rules/` | Cursor Rules（`.cursor/rules/*.mdc` + `AGENTS.md` → system-prompt 分节） |
-| H | `@local/cursor-orchestrator` | `cursor-orchestrator/` | Cursor 根编排 agent（`parent_orchestrator_overview` → `cursor-orchestrator` preset） |
+所有插件均为零外部依赖的本地 bundle（`@local/*`），通过 `cordis.patch.yml` 挂载到 DSH 的 web profile。
 
----
+## 插件清单
 
-## 〇、为什么 Cursor 跑得顺（方法论调研）
-
-> 本仓库另附一篇方法论调研报告，回答"顺滑"背后的工程决策（系统提示词分节 / skill 检索 / MCP 自动发现 / 上下文注入 / 长任务编排），并给出可借鉴清单：
-> 见 [docs/why-cursor-is-smooth.md](docs/why-cursor-is-smooth.md)。
->
-> 以及一篇**触发与编排逆向**报告，拆解 MCP / skill / 系统提示词的具体触发条件与编排协议，并与 DSH 逐项对比（含可落地的差异清单）：
-> 见 [docs/cursor-orchestration-reverse.md](docs/cursor-orchestration-reverse.md)。
+| # | 插件 | 路径 | 能力 |
+|---|------|------|------|
+| A | `@local/dsh-skills` | `dsh-skills/` | 26 个内置 agent skill（canvas / review / goal / loop / visualize 等） |
+| B | `@local/dsh-mcp-mobile` | `dsh-mcp-mobile/` | 移动测试 MCP（mobile-mcp / appium / wdio / adb / dart / perfdog） |
+| C | `@local/dsh-persona` | `dsh-persona/` | `agent` 系统提示词 preset |
+| D | `@local/dsh-telemetry` | `dsh-telemetry/` | skill / goal 可观测性统计 |
+| E | `@local/dsh-mcp-policy` | `dsh-mcp-policy/` | MCP 工具级过滤（server 开关 / allowlist / denyTools） |
+| F | `@local/dsh-hooks` | `dsh-hooks/` | 生命周期 hook（PreToolUse veto 门 + 7 事件桥接） |
+| G | `@local/dsh-rules` | `dsh-rules/` | 工作区规则（`.cursor/rules/*.mdc` + `AGENTS.md`） |
+| H | `@local/dsh-orchestrator` | `dsh-orchestrator/` | 根编排 agent preset |
+| I | `@local/dsh-automation` | `dsh-automation/` | 浏览器 / 电脑操作自动化 preset |
+| J | `@local/dsh-git-branch` | `dsh-git-branch/` | composer git 分支指示器 + 切换器 |
 
 ---
 
-## 一、逆向结论
+## 插件说明
 
-### 1. Cursor 应用结构
+### A — `@local/dsh-skills`（内置 agent skill provider）
 
-`/Applications/Cursor.app/Contents/Resources/app/` 是一个 **VS Code 分支**：
+把 26 个常用 agent skill（`automate`、`autopilot`、`canvas`、`create-hook`、`create-rule`、`create-skill`、`create-subagent`、`goal`、`loop`、`migrate-to-skills`、`new-repo`、`onboard`、`origin`、`rename-chat`、`review`、`review-bugbot`、`review-security`、`sdk`、`share`、`shell`、`split-to-prs`、`statusline`、`update-cli-config`、`update-cursor-settings`、`visualize`、`dsh-orchestrator`）打包为 DSH 的 bundled skill provider。
 
-- `out/main.js`（约 2.5 MB）— 主进程入口（minified）。
-- `extensions/` — 117 个内置扩展；其中 `cursor-agent-host`（约 12 MB）承载 agent 运行时与系统提示词；`cursor-mcp` 承载 MCP 客户端（用 `@modelcontextprotocol/sdk` 1.25.1）。
-- `product.json` — 产品配置（本机 `aiConfig` 仅 `{ ariaKey: "control-key" }`）。
-- 应用**没有 asar 打包**（`app.asar` 不存在、`node_modules.asar` 是 28 字节占位），直接是明文 `out/` + `extensions/`，所以可直接字符串检索。
+- `index.js` 零外部依赖（`node:fs/promises`、`node:url`），`rank = 600`（对齐 `BUNDLED_SKILL_RANK`）。
+- 注册在 host 全局层（`ctx.skills`），所有 preset 可见。
+- skill 正文里引用的上游专属工具/命令会在加载时前置一段「DSH 工具适配」说明，映射到 DSH 等价物（见 `dshtool-map.json`）。
 
-### 2. 系统提示词
+### B — `@local/dsh-mcp-mobile`（移动测试 MCP preset）
 
-提示词在 `extensions/cursor-agent-host/dist/main.js` 中，用类似 JSX 的 `wK("section"/"p"/"h2"/...)` 辅助函数 + 模板字面量拼装。共提取到 **3 个变体**：
+把移动端测试常用的 MCP server 收敛到一个 `mobile-test` preset，避免日常会话为这些工具 schema 付出 token 成本：
 
-1. **AGENT-BASE** — `You are a coding agent in the Cursor IDE that helps the USER with software engineering tasks.`（含 auto-attached-state 提示）
-2. **AGENTIC-CURSOR** — `You are a powerful agentic AI coding assistant powered by Cursor. ... You operate exclusively in Cursor...`（含 `<communication>` / `<tool_calling>` / `<search_and_reading>` / `<making_code_changes>` / `<maximize_parallel_tool_calls>` / `<no_reverts>` / `tone_and_style` 等分节）
-3. **COMPOSER** — `You are an AI coding assistant, powered by Composer. ... You are pair programming with a USER...`
+| server | transport | 命令 / 地址 |
+|--------|-----------|-------------|
+| mobile-mcp | stdio | `npx -y @mobilenext/mobile-mcp@latest` |
+| appium-mcp | stdio | `npx appium-mcp@latest` |
+| wdio-mcp | stdio | `npx -y @wdio/mcp` |
+| adb-mcp | stdio | `npx -y @landicefu/android-adb-mcp-server` |
+| dart | stdio | `dart mcp-server --experimental-mcp-server --force-roots-fallback` |
+| perfdog-mcp-tools | streamable-http | `https://perfdog.qq.com/mcp` |
 
-另含大量 subagent/侧边栏/调试/摘要压缩子提示词。**核心行为指令**（已忠实移植到插件 C 的 persona prefix）：
+HTTP 密钥在加载时通过 `!!js` + `process.getBuiltinModule('fs')` 运行时读取，不落盘到插件。
 
-- 不向用户提及工具名（说「我来改文件」而非「我用 edit 工具」）
-- 只在必要时调用工具；能直接答就直接答
-- 不确定就先读/搜/问，倾向自己找答案而非麻烦用户
-- 改代码用编辑工具而非输出代码块；编辑前先读文件；修掉自己引入的 lint 错误
-- 无依赖的工具调用并行发起；禁止用占位符猜参数
-- 不擅自回退用户改动；用户换话题则当作新任务
+### C — `@local/dsh-persona`（`agent` 系统提示词 preset）
 
-> 注：v1.1.0 起 persona prefix 已补全到高保真——在原有基础上新增 `<task_management>`、`<citing_code>`、`<calling_external_apis>`、`<parameter_discipline>` 分节，并把 `<communication>` 扩为含 "lead with the answer" 的完整版；`citing_code` 的 `startLine:endLine:filepath` 格式按 DSH 惯例映射为 markdown 链接带行号（`path#L24-L30`）。
+新增可选 `agent` preset（order 20），提供一套 agentic 编码系统提示词（`<communication>` / `<tool_calling>` / `<search_and_reading>` / `<making_code_changes>` / `<maximize_parallel_tool_calls>` / `<task_management>` / `<citing_code>` / `<orchestration>` 等分节），工具集与 standard 对齐。
 
-### 3. 系统 Skill
+### D — `@local/dsh-telemetry`（可观测性）
 
-`~/.cursor/skills-cursor/` 共 **27 个内置 skill**，每个是一个 `<name>/SKILL.md`：
+零依赖内存态统计，包装 `ctx.skills.get` 记录 skill 触发次数，监听 `skills/change` 与 `goal/changed`。句柄 `ctx.dshTelemetry` 提供 `.stats()` / `.reset()`。
 
-- YAML frontmatter：`name`、`description`（常用 `>-` 折叠块标量）、可选 `disable-model-invocation`。
-- `disable-model-invocation: true` 表示只能走斜杠命令（`/goal`、`/review` 等），不被模型自主调用。
-- 少数 skill 带附属资源：`canvas/sdk/*.d.ts`、`visualize/references/*.md`。
-- 清单文件：`.cursor-managed-skills-manifest.json`（`builtinSkillIds` + `managedSkillIds`）、`.sync-manifest.json`。
+### E — `@local/dsh-mcp-policy`（MCP 工具级过滤）
 
-27 个 skill：automate、autopilot、canvas、create-hook、create-rule、create-skill、create-subagent、cursor-orchestrator、deploy-with-vercel、goal、loop、migrate-to-skills、new-repo、onboard、origin、rename-chat、review、review-bugbot、review-security、sdk、share、shell、split-to-prs、statusline、update-cli-config、update-cursor-settings、visualize。
+三级过滤：`enabledServers`（整 server 开关）→ `toolAllowlist`（per-server 白名单）→ `denyTools`（单工具禁用）。用 plain-context `tools.guard` 做全局守卫，被禁工具调用时返回 deny 原因。
 
-其中 `disable-model-invocation: true` 的有 8 个：create-subagent、deploy-with-vercel、goal、migrate-to-skills、onboard、rename-chat、review、shell。
+### F — `@local/dsh-hooks`（生命周期 hook）
 
-### 4. 系统 MCP
+把 7 个生命周期事件桥接到用户 shell 命令：`PreToolUse→tools/pre-execute`、`PostToolUse→tools/result`、`UserPromptSubmit→agent/inbox/inserted`、`Stop→agent/turn-stopping`、`SubagentStop→subagent/end`、`SessionStart→agent/created`、`SessionEnd→agent/disposed`。
 
-`~/.cursor/mcp.json` 共 **8 个 MCP server**：
+`PreToolUse` 为 veto 门：exit code 2 或 stdout `{"permissionDecision":"deny"}` 阻止工具派发。
 
-| server | transport | 命令 / 地址 | 备注 |
-|--------|-----------|-------------|------|
-| dart | stdio | `dart mcp-server --experimental-mcp-server --force-roots-fallback` | |
-| Mobile MCP | stdio | `npx -y @mobilenext/mobile-mcp@latest` | serverName 改为 `mobile-mcp` |
-| wdio-mcp | stdio | `npx -y @wdio/mcp` | env: APPIUM_URL / APPIUM_URL_PORT |
-| appium-mcp | stdio | `npx appium-mcp@latest` | env: ANDROID_HOME |
-| adb-mcp | stdio | `npx -y @landicefu/android-adb-mcp-server` | |
-| android-mcp | stdio | `uvx android-mcp` | 依赖 uv/uvx |
-| perfdog-mcp-tools | streamable-http | `https://perfdog.qq.com/mcp` | header `Mcp_token` |
+### G — `@local/dsh-rules`（工作区规则 + AGENTS.md）
 
----
+读取 `.cursor/rules/*.mdc`（YAML frontmatter `description` / `globs` / `alwaysApply`）：
 
-## 二、DSH 集成映射
+- `alwaysApply: true` 的规则注入 `<always_applied_workspace_rules>` 分节（order 400）。
+- `globs` 规则按 name+description+glob 广告（agent 按需读文件）。
+- 额外从 cwd 向上遍历收集 `AGENTS.md`，注入独立 `cloud_instructions` 分节（order 405）。
 
-| Cursor 概念 | DSH 对应 | 实现 |
-|-------------|----------|------|
-| 系统提示词 | `@deepseek-ai/dsh-persona`（`prefix`） | 新 preset `cursor` |
-| 内置 skill（SKILL.md） | `@deepseek-ai/dsh-skill` 的 `registerProvider` | 自托管 Host 插件 `@local/cursor-skills` |
-| `disable-model-invocation: true` | `invocation.modelInvocable: false` | manifest 生成时映射 |
-| MCP server | `@deepseek-ai/dsh-mcp-client` | 每 server 一行，`serverName` 生成 `mcp__<name>__<tool>` 工具 |
-| stdio transport | `transport: stdio` + `command`/`args`/`env` | 直接搬 |
-| streamable-http transport | `transport: streamable-http` + `url`/`headers` | header 用 `!!js` 从 `~/.cursor/mcp.json` 读 token |
+### H — `@local/dsh-orchestrator`（根编排 agent preset）
 
-关键取舍：skill provider 注册在 **host 全局层**（`ctx.skills`），这样 26 个 skill 对所有 preset 可见，不依赖 `skill-filesystem` 的目录扫描路径解析，最稳。MCP 同样挂在 host 层，所有 agent 共享。系统提示词单独做成 **新的 `cursor` preset**，不覆盖现有 `standard`/`ptc`/`minimal`/`cordis`（本环境还有 dsh-purge 的自定义 persona，避免冲突）。
+新增 `dsh-orchestrator` preset（order 30）：plan → delegate subagents → `progress.md` 持久状态 → 安全并行。工具映射 `CREATE_TASK` → `subagent`/`subagent_fork`、`SEND_TO_TASK` → `send_message`、`AskQuestion` → `ask_user_question`。
+
+### I — `@local/dsh-automation`（浏览器 / 电脑操作自动化 preset）
+
+新增 `automation` preset，挂载 Playwright 与 computer-use MCP，让 agent 具备浏览器操作与屏幕控制能力，工具集独立于日常编码会话。
+
+### J — `@local/dsh-git-branch`（composer git 分支指示器）
+
+在 composer dock 渲染当前 git 分支 pill，点击弹出 Local / Remote 分支选择器：
+
+- host 半 `git_branch` 工具用 `git for-each-ref` 列出本地 + 远程分支。
+- client 半读 `.git/HEAD` + `workspaceFiles`，支持 submodule / worktree（`.git` 为 `gitdir:` 文件时解析真实 git 目录）。
+- 选中分支后把 `git checkout` 草稿写入 composer，人工确认后执行。
 
 ---
 
-## 三、交付的七个插件
+## 安装
 
-### 插件 A — `@local/cursor-skills`（Host skill provider）
+各 bundle 通过 `plugin_manager install_bundle` 装进目标 profile（`link:` 到本仓库目录），或直接把 `cordis.patch.yml` 的 `insert` 片段并入你的 composition：
 
-```
-cursor-skills/
-├── package.json            # dsh.bundle.patch 指向 cordis.patch.yml
-├── cordis.patch.yml        # - insert: cursor-skills -> @local/cursor-skills
-├── index.js                # registerProvider 的 Host 插件
-├── skills-manifest.json    # 26 条 {name, description, modelInvocable, ...}
-└── skills/<name>/SKILL.md  # 原样复制的 26 个 skill（含 canvas/sdk、visualize/references）
-```
-
-- `index.js` 零外部依赖（内置 `node:fs/promises`、`node:url`），`rank = 600`（对齐 `BUNDLED_SKILL_RANK`）。
-- `resourceBase` 指向每个 skill 自己的目录，`visualize`/`canvas` 的相对 `references/`、`sdk/` 引用可正常解析。
-- `list()` 每次读 manifest（不缓存），改 skill 只需刷新目录，无需重启。
-
-### 插件 B — `@local/cursor-mcp`（8 个 mcp-client 行）
-
-```
-cursor-mcp/
-├── package.json
-└── cordis.patch.yml        # 8 个 - insert: cursor-mcp-<name> -> @deepseek-ai/dsh-mcp-client
+```yaml
+- insert:
+    - id: dsh-skills
+      name: '@local/dsh-skills'
+    - id: dsh-git-branch
+      name: '@local/dsh-git-branch'
 ```
 
-- stdio 6 个直接搬；http 2 个的 token 通过 `!!js` + `process.getBuiltinModule('fs')` 从 `~/.cursor/mcp.json` **运行时读取**，密钥不落盘到插件、不写进本报告。
+> 改 `index.js` 模块不会热更新（HMR 只 watch `cordis.patch.yml`），需重启 dsh 才重新加载。
 
-### 插件 C — `@local/cursor-persona`（新 preset `cursor`）
+## 文档
 
-```
-cursor-persona/
-├── package.json
-└── cordis.patch.yml        # - insert: preset-cursor -> @deepseek-ai/dsh-agent-preset
-```
+| 文档 | 内容 |
+|------|------|
+| [docs/why-dsh-is-smooth.md](docs/why-dsh-is-smooth.md) | 工程实践调研：系统提示词分节 / skill 检索 / MCP 自动发现 / 上下文注入 / 长任务编排 |
+| [docs/orchestration.md](docs/orchestration.md) | 触发与编排分析：一次 turn 的触发链、skill 门控、MCP 过滤、hook 事件、subagent 编排 |
+| [docs/canvas-sdk.md](docs/canvas-sdk.md) | Canvas SDK + 编译渲染分析 |
 
-- 新增可选 preset `cursor`（order 20），`persona.prefix` = 移植后的 Cursor 系统提示词，`suffix` = `Your working directory is {{cwd}}.`
-- 工具集与 standard 对齐：bash/pwsh/fs/fs-search/jobs、skill-filesystem + tool-skill、goal、ask-user、todo、web、present、subagent(fork)。
+## License
 
-### 插件 D — `@local/cursor-telemetry`（可观测性）
-
-```
-cursor-telemetry/
-├── package.json
-├── cordis.patch.yml        # - insert: cursor-telemetry -> @local/cursor-telemetry
-└── index.js                # 内存态统计：ctx.cursorTelemetry
-```
-
-- 零依赖，挂 host 全局层。包装 `ctx.skills.get`（`skill` 工具与 `/name` 调用共同的唯一入口）记录 skill 触发次数；监听 `skills/change` 与 `goal/changed` 记录目录失效与 goal 生命周期。
-- 统计句柄 `ctx.cursorTelemetry`：`.stats()`（按触发次数降序的 skillLoads、skillCatalogChanges、goalChangeCount、recentGoalChanges）、`.reset()`。
-- 内存态，重启清零；dispose 时恢复 `ctx.skills.get` 并移除句柄。
-
-### 插件 E — `@local/cursor-mcp-policy`（MCP 工具级过滤）
-
-```
-cursor-mcp-policy/
-├── package.json            # name @local/cursor-mcp-policy
-├── cordis.patch.yml        # - insert: cursor-mcp-policy（config: enabledServers/toolAllowlist/denyTools）
-├── index.js                # plain-context tools.guard（全局守卫）
-└── locale/en.json
-```
-
-- 移植 Cursor 的三级过滤：`enabledServers`（整 server 开关）→ `toolAllowlist`（per-server 白名单）→ `denyTools`（单工具禁用）。
-- DSH 没有 context-global `tools.restrict`（会遮蔽所有 agent），所以用 **plain-context `tools.guard`**：被禁工具调用时返回 deny 原因；被禁工具仍可见但调用失败，等价于 Cursor `userDisabledToolKeys` 的"使用时阻断"。
-
-### 插件 F — `@local/cursor-hooks`（生命周期 hook）
-
-```
-cursor-hooks/
-├── package.json            # name @local/cursor-hooks
-├── cordis.patch.yml        # - insert: cursor-hooks（config: hooks: { HookName: shellCommand }）
-├── index.js                # ctx.on 桥接 7 个事件 -> spawn shell
-└── locale/en.json
-```
-
-- 7 个事件点桥接：`PreToolUse→tools/pre-execute`、`PostToolUse→tools/result`、`UserPromptSubmit→agent/inbox/inserted`、`Stop→agent/turn-stopping`、`SubagentStop→subagent/end`、`SessionStart→agent/created`、`SessionEnd→agent/disposed`。
-- 每个 hook 的 shell 命令经 stdin 收一个 JSON 对象（`{ "hook": ..., ...payload }`）。`PreToolUse` 为 **veto 门**：exit code 2 或 stdout `{"permissionDecision":"deny"}` 阻止工具派发（`tools/pre-execute` 返回 `{ kind:"deny", reason }`）；其余事件 fire-and-forget（观察）。
-
-### 插件 G — `@local/cursor-rules`（Cursor Rules）
-
-```
-cursor-rules/
-├── package.json            # name @local/cursor-rules
-├── cordis.patch.yml        # - insert: cursor-rules（config: rulesDir/advertiseGlobRules/maxRuleBytes）
-├── index.js                # agent/created 里注册 per-agent systemPrompt.section
-└── locale/en.json
-```
-
-- 移植 Cursor 规则系统：读取 `.cursor/rules/*.mdc`（YAML frontmatter `description`/`globs`/`alwaysApply`）。
-- `alwaysApply: true` 的规则 → 注入 `<always_applied_workspace_rules>` 分节（`cursor:workspace-rules`，order 400，persona 之后、plan policy 之前）。
-- `globs` 规则 → 按 name+description+glob 广告进 `<agent_requestable_workspace_rules>`（agent 按需读文件），不内联内容。
-- per-agent scoped section（`agent.ctx`），cwd 取 `agent.session.header.cwd`；text 用 provider 函数每次 assembly 同步重读，规则改动即时生效。
-- 新增 AGENTS.md 支持：逆向 Cursor 的 `cloud_instructions` 分节（"Instructions pulled from AGENTS.md"），从 cwd 向上遍历收集 `AGENTS.md` 注入独立分节（`cursor:cloud-instructions`，order 405，`agentsMd` 开关默认开）。
-
-### 插件 H — `@local/cursor-orchestrator`（根编排 agent preset）
-
-```
-cursor-orchestrator/
-├── package.json            # name @local/cursor-orchestrator
-└── cordis.patch.yml        # - insert: preset-orchestrator（@deepseek-ai/dsh-agent-preset）
-```
-
-- 移植 Cursor 的根编排 agent：逆向 `parent_orchestrator_overview`（root orchestrator + fleet 管理 + 优先并行）、`project_mode`（长程 planner）、`hard_constraints`（Orchestrate don't execute / Task-first / phase-gated / 安全并行）、`progress_md_protocol`（Scribe 单写 `progress.md`）。
-- 工具映射：`CREATE_TASK` → `subagent`/`subagent_fork`、`SEND_TO_TASK` → `send_message`、`AskQuestion` → `ask_user_question`；subagent 带 `modelSelectionSettings: true` + `backgroundMode: continuable`。
-- 作为新 preset `cursor-orchestrator`（order 30），不触碰现有 preset。
-
----
-
-## 四、安装与验证
-
-八个 bundle 已通过 `plugin_manager install_bundle` 装进 `web` profile（`list_bundles` 可见，均为 `link:` 到本工作目录）：
-
-```
-@local/cursor-skills      -> row cursor-skills (27 skills)
-@local/cursor-mcp         -> 8 rows cursor-mcp-*
-@local/cursor-persona     -> row preset-cursor
-@local/cursor-telemetry   -> row cursor-telemetry
-@local/cursor-mcp-policy  -> row cursor-mcp-policy（restrict + guard）
-@local/cursor-hooks       -> row cursor-hooks
-@local/cursor-rules       -> row cursor-rules（+ cloud_instructions 分节）
-@local/cursor-orchestrator -> row preset-orchestrator
-```
-
-**运行时验证结果**：
-
-- ✅ 27 个 Cursor skill 已进入 skill catalog（含 `cursor-orchestrator`）。
-- ✅ MCP 工具已注册（`Tool.listTools` 实测可见）：`mcp__dart__*`、`mcp__mobile-mcp__*`、`mcp__wdio-mcp__*`、`mcp__appium-mcp__*`、`mcp__adb-mcp__*`、`mcp__perfdog-mcp-tools__*`。
-- ✅ `preset-cursor` 已注册到 `agentPresets` 行表。
-- ✅ `cursor-telemetry` 已注册，`ctx.cursorTelemetry` 提供 skill 触发 / 目录变更 / goal 生命周期统计（内存态，重启清零）。
-- ✅ `cursor-mcp-policy` 已注册：restrict+guard 单测 3 场景通过（`denyTools` / `enabledServers` / `toolAllowlist`），`denyTools` 端到端实测拦截成功。
-- ✅ `cursor-hooks` 已注册：`PostToolUse` hook 端到端实测触发，payload `{"hook":"PostToolUse","name":"read","isError":false}` 成功落盘。
-- ✅ `cursor-rules` 已注册：单测 5/5 通过（always 规则内联注入、glob 规则广告、分节 name/order 正确）；AGENTS.md `cloud_instructions` 分节已接入。
-- ✅ `cursor-orchestrator` 已注册：`preset-orchestrator` 投影出 schema（`Config.listConfigs` status=schema），新 preset `cursor-orchestrator` 可选。
-
----
-
-## 五、已知限制与迁移注意
-
-1. **重启生效**：改 `index.js` 模块不会热更新（HMR 只 watch `cordis.patch.yml`），需重启 dsh 才重新加载——`cursor-skills`（`environments`/`disabled-environments` metadata 透传）与 `cursor-mcp-policy`（新增 per-agent `restrict` 移除工具）当前运行进程可能仍是上一版模块，重启后生效；`cursor-rules` 为全新 install（新模块 URL）已即时生效；`preset-cursor` 需重启后切到 **Cursor** preset、`preset-orchestrator` 需重启后切到 **Cursor Orchestrator** preset；`cursor-telemetry` 需重启后挂载 `ctx.cursorTelemetry`。
-2. **`android-mcp`（uvx）**：首次 `uvx android-mcp` 会下载建 venv，慢/易超时；本快照里未注册。它和 `adb-mcp` 功能重叠，可保留或去掉。
-3. **Cursor 专属工具映射缺失**：若干 Cursor skill 引用了 DSH 没有的 Cursor 工具/命令，例如 `CreateGoal`/`AskQuestion`/`CreateOrUpdateRule`、`/review-bugbot` 斜杠命令、`use_browser`、`gh` 等。已原样保留 skill 文本（忠实逆向），实际调用时这些工具名在 DSH 不存在，模型会改走 DSH 等价物（`create_goal`/`ask_user_question`/`subagent`/`bash` 等）。如需严格对齐，可在这些 skill 里补 DSH 工具名映射。
-4. **token 安全**：perfdog 的 token 仍以明文存于 `~/.cursor/mcp.json`（Cursor 原样），插件只做运行时引用，不复制、不落盘到 profile。
-5. **描述字段**：Cursor skill 的 `description` 常用折叠块标量（`>-`），已在 `skills-manifest.json` 生成时用 js-yaml 正确折叠。
-6. **hook veto 语义**：`cursor-hooks` 的 `PreToolUse` 已支持 veto（exit 2 / `permissionDecision=deny` 阻止工具派发），其余事件仍 fire-and-forget（观察）。被禁 MCP 工具由 `cursor-mcp-policy` 双层处理：`restrict` 移除（模型不可见）+ `guard` 兜底（dispatch 时 deny）。
-7. **cursor-rules glob 规则**：`globs` 规则只广告（name+description+glob），不内联内容；agent 需按需读 `.cursor/rules/*.mdc`。真正"文件匹配时自动注入"需监听 fs touch + glob 匹配，属后续增强。
-
----
-
-## 附：关键源码位置（供继续二开）
-
-- DSH skill 模板：`<dsh>/node_modules/@deepseek-ai/dsh-skill-badge/lib/index.js`
-- DSH skill 类型：`<dsh>/node_modules/@deepseek-ai/dsh-skill/lib/types/index.d.ts`
-- DSH mcp 客户端：`<dsh>/node_modules/@deepseek-ai/dsh-mcp-client`
-- DSH persona：`<dsh>/node_modules/@deepseek-ai/dsh-persona`
-- 标准 preset 参考：`<dsh>/node_modules/@deepseek-ai/dsh-web-app/presets/standard.patch.yml`
-- Cursor 提示词：`/Applications/Cursor.app/Contents/Resources/app/extensions/cursor-agent-host/dist/main.js`
-- Cursor 内置 skill：`~/.cursor/skills-cursor/`
-- Cursor MCP 配置：`~/.cursor/mcp.json`
+[MIT](LICENSE)

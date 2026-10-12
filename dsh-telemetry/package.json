@@ -1,0 +1,39 @@
+{
+  "name": "@local/dsh-telemetry",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Skill/goal telemetry for DeepSeek Harness: in-memory counters for skill loads, catalog changes, and goal lifecycle, exposed as ctx.dshTelemetry.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+        "telemetry",
+    "observability",
+    "deepseek-harness"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lnuxe/dsh-plugins.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dshTarget": "0.2.0-rc.2"
+}

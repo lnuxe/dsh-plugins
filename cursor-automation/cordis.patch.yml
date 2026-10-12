@@ -1,0 +1,65 @@
+# automation agent preset: browser automation (@playwright/mcp) + computer use
+# (computer-use-mcp) scoped here so the everyday preset never loads their tool
+# schemas. Mirrors Cursor's per-turn tool visibility: the model pays only for
+# the tools of its current agent.
+- insert:
+    - id: preset-automation
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: automation
+        name: Automation
+        description: '桌面/浏览器自动化 agent：Playwright 浏览器自动化 + computer-use 桌面操控，日常 coding 不加载。'
+        order: 50
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: |
+                You are a desktop-and-browser automation agent. Drive a real browser with the Playwright tools (browser_navigate, browser_click, browser_snapshot, browser_take_screenshot, ...) and control the whole desktop with the `computer` tool (screenshot, mouse, keyboard).
+
+                - Prefer `browser_snapshot` (accessibility tree) over screenshots to locate elements; use `browser_click` with element refs rather than raw coordinates.
+                - For desktop actions, always `get_screenshot` first to see the current screen, then act with `mouse_move`/`left_click`/`type`/`key`.
+                - On macOS a first click on an unfocused window only raises it; screenshot to confirm and click again.
+              suffix: Your working directory is {{cwd}}.
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: tool-bash
+            name: '@deepseek-ai/dsh-tool-bash'
+            disabled: !!js process.platform === 'win32'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: present
+            name: '@deepseek-ai/dsh-tool-present'
+          - id: cursor-automation-playwright
+            name: '@deepseek-ai/dsh-mcp-client'
+            config:
+              serverName: playwright
+              transport: stdio
+              command: npx
+              args: ['-y', '@playwright/mcp@latest']
+              failOnStartupError: false
+          - id: cursor-automation-computer-use
+            name: '@deepseek-ai/dsh-mcp-client'
+            config:
+              serverName: computer-use
+              transport: stdio
+              command: npx
+              args: ['-y', 'computer-use-mcp@1.8.0']
+              failOnStartupError: false
